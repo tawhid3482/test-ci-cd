@@ -2,9 +2,8 @@ import "dotenv/config";
 import http from "http";
 import app from "./app";
 import { PrismaClient } from "@prisma/client";
-import { envVars } from "../src/app/config/env";
+import {envVars} from './app/config/env';
 
-// কোনো আর্গুমেন্ট ছাড়া কল করুন, Prisma অটোমেটিক prisma.config.ts থেকে ডাটা নেবে
 const prisma = new PrismaClient();
 
 async function startServer() {
