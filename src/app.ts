@@ -31,7 +31,7 @@ app.use("/images", express.static(path.join(__dirname, "../public/images")));
 app.use("/api/v1", apiRouter);
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("saikat code-base  start!");
+  res.send("tawhidul islam code-base  start!");
 });
 
 // app.use(globalErrorHandler);
