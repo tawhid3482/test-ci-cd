@@ -17,3 +17,8 @@ model User {
   gender   String
   status   String
 }
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
