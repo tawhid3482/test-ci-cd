@@ -8,17 +8,25 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String
-  email    String @unique
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  name     String?
+  email    String  @unique
   password String
-  phone    String
-  role     String
+  phone    String?
+  role     Role
   gender   String
-  status   String
+  status   STATUS
+  isActive Boolean @default(true)
 }
+
 enum Role {
   SUPER_ADMIN
   ADMIN
   USER
+}
+
+enum STATUS {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }

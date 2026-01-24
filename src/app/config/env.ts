@@ -13,6 +13,11 @@ interface EnvVars {
   JWT_REFRESH_EXPIRED: string;
   EMAIL: string;
   APP_PASS: string;
+  EMAIL_SENDER_SMTP_USER: string;
+  EMAIL_SENDER_SMTP_PASS: string;
+  EMAIL_SENDER_SMTP_PORT: string;
+  FRONTEND_URL: string;
+  EMAIL_SENDER_SMTP_HOST: string;
 
 
 }
@@ -29,6 +34,11 @@ const loadEnvVariables = (): EnvVars => {
     "JWT_REFRESH_EXPIRED",
     "EMAIL",
     "APP_PASS",
+    "EMAIL_SENDER_SMTP_USER",
+    "EMAIL_SENDER_SMTP_PASS",
+    "EMAIL_SENDER_SMTP_PORT",
+    "FRONTEND_URL",
+    "EMAIL_SENDER_SMTP_HOST",
     
   ];
   requiredVars.forEach((key) => {
@@ -49,6 +59,12 @@ const loadEnvVariables = (): EnvVars => {
     JWT_REFRESH_EXPIRED: process.env.JWT_REFRESH_EXPIRED as string,
     EMAIL: process.env.EMAIL as string,
     APP_PASS: process.env.APP_PASS as string,
+    EMAIL_SENDER_SMTP_USER: process.env.EMAIL_SENDER_SMTP_USER as string,
+    EMAIL_SENDER_SMTP_PASS: process.env.EMAIL_SENDER_SMTP_PASS as string,
+    EMAIL_SENDER_SMTP_PORT: process.env.EMAIL_SENDER_SMTP_PORT as string,
+    FRONTEND_URL: process.env.FRONTEND_URL as string,
+    EMAIL_SENDER_SMTP_HOST: process.env.EMAIL_SENDER_SMTP_HOST as string,
+
     
   };
 };
