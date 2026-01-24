@@ -10,6 +10,7 @@ import { sendResponse } from "../../utils/sendResponse";
 import AppError from "../../helpers/AppError";
 
 const userLogin = catchAsync(async (req: Request, res: Response) => {
+
   const result = await authService.userLogin(req.body);
 
   setAuthCookie(res, result);
@@ -54,7 +55,7 @@ const logout = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: "User logout  successfully",
+    message: "User logout successfully",
     data: null,
   });
 });
