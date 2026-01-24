@@ -8,7 +8,7 @@ export const seedSuperAdmin = async (prisma: PrismaClient) => {
     });
 
     if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash("654321", 10);
+      const hashedPassword = await bcrypt.hash("saikat123", 12);
       await prisma.user.create({
         data: {
           name: "Tawhidul Islam",
@@ -17,7 +17,7 @@ export const seedSuperAdmin = async (prisma: PrismaClient) => {
           password: hashedPassword,
           role: "SUPER_ADMIN",
           gender: "Male",
-          status: "Active",
+          status: "ACTIVE",
         },
       });
     } else {

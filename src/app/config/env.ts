@@ -11,8 +11,6 @@ interface EnvVars {
   BCRYPT_SALT_ROUND: string;
   JWT_REFRESH_SECRET: string;
   JWT_REFRESH_EXPIRED: string;
-  EMAIL: string;
-  APP_PASS: string;
   EMAIL_SENDER_SMTP_USER: string;
   EMAIL_SENDER_SMTP_PASS: string;
   EMAIL_SENDER_SMTP_PORT: string;
@@ -32,8 +30,6 @@ const loadEnvVariables = (): EnvVars => {
     "BCRYPT_SALT_ROUND",
     "JWT_REFRESH_SECRET",
     "JWT_REFRESH_EXPIRED",
-    "EMAIL",
-    "APP_PASS",
     "EMAIL_SENDER_SMTP_USER",
     "EMAIL_SENDER_SMTP_PASS",
     "EMAIL_SENDER_SMTP_PORT",
@@ -57,8 +53,6 @@ const loadEnvVariables = (): EnvVars => {
     BCRYPT_SALT_ROUND: process.env.BCRYPT_SALT_ROUND as string,
     JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET as string,
     JWT_REFRESH_EXPIRED: process.env.JWT_REFRESH_EXPIRED as string,
-    EMAIL: process.env.EMAIL as string,
-    APP_PASS: process.env.APP_PASS as string,
     EMAIL_SENDER_SMTP_USER: process.env.EMAIL_SENDER_SMTP_USER as string,
     EMAIL_SENDER_SMTP_PASS: process.env.EMAIL_SENDER_SMTP_PASS as string,
     EMAIL_SENDER_SMTP_PORT: process.env.EMAIL_SENDER_SMTP_PORT as string,
