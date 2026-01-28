@@ -5,6 +5,11 @@ import { Role } from "@prisma/client";
 
 const router = Router();
 
+router.post("/send-otp", authController.sendOtp);
+router.post("/resend-otp", authController.resendOtp);
+router.post("/verify-otp", authController.verifyOtp);
+
+
 router.post("/login", authController.userLogin);
 
 router.post("/refresh-token", authController.getNewAccessToken);

@@ -11,6 +11,7 @@ async function startServer() {
   try {
     await prisma.$connect();
     console.log("✅ Prisma connected to MongoDB");
+    
     await seedSuperAdmin(prisma);
 
     const server = http.createServer(app);

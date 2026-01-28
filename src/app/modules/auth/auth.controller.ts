@@ -8,9 +8,42 @@ import { envVars } from "../../config/env";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import AppError from "../../helpers/AppError";
+import { OTPService } from "./otp.service";
+
+const sendOtp = catchAsync(async (req: Request, res: Response) => {
+   await OTPService.sendOTP(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "send to the opt you mail successful",
+    data: null,
+  });
+});
+
+const verifyOtp = catchAsync(async (req: Request, res: Response) => {
+  const result = await OTPService.verifyOTP(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "verify otp successfully",
+    data: result,
+  });
+});
+
+const resendOtp = catchAsync(async (req: Request, res: Response) => {
+  await OTPService.resendOTP(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "resend the otp successfully",
+    data: null,
+  });
+});
 
 const userLogin = catchAsync(async (req: Request, res: Response) => {
-
   const result = await authService.userLogin(req.body);
 
   setAuthCookie(res, result);
@@ -69,7 +102,7 @@ const changePassword = catchAsync(
     await authService.changePassword(
       oldPassword,
       newPassword,
-      decodedToken as JwtPayload
+      decodedToken as JwtPayload,
     );
 
     sendResponse(res, {
@@ -78,7 +111,7 @@ const changePassword = catchAsync(
       message: "Password Changed Successfully",
       data: null,
     });
-  }
+  },
 );
 
 const resetPassword = catchAsync(
@@ -91,7 +124,7 @@ const resetPassword = catchAsync(
       message: "Password Reset Successfully",
       data: null,
     });
-  }
+  },
 );
 
 const forgotPassword = catchAsync(
@@ -106,7 +139,7 @@ const forgotPassword = catchAsync(
       message: "Email Sent Successfully",
       data: null,
     });
-  }
+  },
 );
 
 export const authController = {
@@ -116,4 +149,7 @@ export const authController = {
   resetPassword,
   changePassword,
   forgotPassword,
+  sendOtp,
+  resendOtp,
+  verifyOtp,
 };
