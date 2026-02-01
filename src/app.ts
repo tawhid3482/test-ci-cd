@@ -25,7 +25,7 @@ app.use(cookieParser());
 
 // app.use("/api", router);
 
-app.use("/images", express.static(path.join(__dirname, "../public/images")));
+// app.use("/images", express.static(path.join(__dirname, "../public/images")));
 // API Routes
 app.use("/api/v1", apiRouter);
 

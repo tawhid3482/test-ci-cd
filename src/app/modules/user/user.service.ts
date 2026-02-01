@@ -16,7 +16,7 @@ const userSignUp = async (payload: any) => {
     throw new AppError(404, "User Already exits");
   }
   const hashedPassword = await bcrypt.hash(payload.password, 12);
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx:any) => {
     const user = await tx.user.create({
       data: {
         name: payload.name,
