@@ -48,7 +48,7 @@ export const createNewAccessTokenWithRefreshToken = async (
   }
 
   if (isUserExist.status === "INACTIVE" || isUserExist.status === "SUSPENDED") {
-    throw new AppError(httpStatus.CONFLICT, `User is ${isUserExist.isActive}`);
+    throw new AppError(httpStatus.CONFLICT, `User is ${isUserExist.status === "INACTIVE"}`);
   }
 
   const jwtPayload = {

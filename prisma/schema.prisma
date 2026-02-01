@@ -78,6 +78,43 @@ model Student {
   student_id String @unique
 }
 
+model WebSetting {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Primary colors
+  primaryColor    String?
+  secondaryColor  String?
+  accentColor     String?
+
+  // Text colors
+  textColor       String?
+  textSecondary   String?
+
+  // Backgrounds
+  background      String?
+  cardBg          String?
+  borderColor     String?
+
+  // Hover colors
+  hoverPrimary    String?
+  hoverSecondary  String?
+  hoverAccent     String?
+
+  // Button styles
+  btnBg           String?
+  btnHover        String?
+  btnActive       String?
+  btnText         String?
+
+  // Tracking
+  fb_pixel        String?
+  google_tag_manager String?
+
+  // Meta
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Document {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   tutorId     String       @db.ObjectId
