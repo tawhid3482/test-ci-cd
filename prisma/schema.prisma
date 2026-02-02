@@ -79,40 +79,40 @@ model Student {
 }
 
 model WebSetting {
-  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   // Primary colors
-  primaryColor    String?
-  secondaryColor  String?
-  accentColor     String?
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
 
   // Text colors
-  textColor       String?
-  textSecondary   String?
+  textColor     String?
+  textSecondary String?
 
   // Backgrounds
-  background      String?
-  cardBg          String?
-  borderColor     String?
+  background  String?
+  cardBg      String?
+  borderColor String?
 
   // Hover colors
-  hoverPrimary    String?
-  hoverSecondary  String?
-  hoverAccent     String?
+  hoverPrimary   String?
+  hoverSecondary String?
+  hoverAccent    String?
 
   // Button styles
-  btnBg           String?
-  btnHover        String?
-  btnActive       String?
-  btnText         String?
+  btnBg     String?
+  btnHover  String?
+  btnActive String?
+  btnText   String?
 
   // Tracking
-  fb_pixel        String?
+  fb_pixel           String?
   google_tag_manager String?
 
   // Meta
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Document {
@@ -129,6 +129,17 @@ model Document {
   @@map("documents")
 }
 
+model Contact {
+  id       String         @id @default(auto()) @map("_id") @db.ObjectId
+  title    String
+  message  String
+  email    String
+  priority priorityStatus @default(Normal)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum DocumentType {
   MARK_SHEET
   INSTITUTE_ID
@@ -140,6 +151,11 @@ enum Role {
   STUDENT
   MANAGER
   TUTOR
+}
+
+enum priorityStatus {
+  Urgent
+  Normal
 }
 
 enum STATUS {

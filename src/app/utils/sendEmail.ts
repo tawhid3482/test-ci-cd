@@ -21,7 +21,7 @@ const sendEmail = async (
 
   // Email options
   const mailOptions = {
-    from: `"Your Tuition" <${envVars.EMAIL_SENDER_SMTP_USER}>`,
+    from: `"TR Tuition" <${envVars.EMAIL_SENDER_SMTP_USER}>`,
     to,
     subject,
     html,
