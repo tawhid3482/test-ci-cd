@@ -45,9 +45,7 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
 
 const userLogin = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.userLogin(req.body);
-
   setAuthCookie(res, result);
-
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

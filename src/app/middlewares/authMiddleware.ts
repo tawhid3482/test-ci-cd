@@ -12,7 +12,7 @@ interface CustomJwtPayload extends JwtPayload {
 
 export const auth = (...roles: Role[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.cookies?.accessToken;
 
     if (!authHeader) {
       return next(new AppError(401, "Unauthorized access", "No token provided"));
@@ -22,7 +22,6 @@ export const auth = (...roles: Role[]) => {
     const token = authHeader.startsWith("Bearer ")
       ? authHeader.split(" ")[1]
       : authHeader;
-
     if (!token) {
       return next(new AppError(401, "Unauthorized access", "No token provided"));
     }

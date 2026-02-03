@@ -8,22 +8,22 @@ import {
   createUserToken,
 } from "../../utils/userToken";
 import sendEmail from "../../utils/sendEmail";
+import AppError from "../../helpers/AppError";
 
 const prisma = new PrismaClient();
 
 const userLogin = async (
-  payload: Partial<{ email: string; password: string; role: string }>,
+  payload: Partial<{ email: string; password: string }>,
 ) => {
   const { email, password } = payload;
 
   const isUserExist = await prisma.user.findUnique({ where: { email } });
   if (!isUserExist) {
-    throw { status: httpStatus.CONFLICT, message: "User does not exist" };
+    throw new AppError(httpStatus.NOT_FOUND, "User does not exist");
   }
-
   const isPasswordMatch = await bcrypt.compare(password!, isUserExist.password);
   if (!isPasswordMatch) {
-    throw { status: httpStatus.CONFLICT, message: "Incorrect password" };
+    throw new AppError(httpStatus.UNAUTHORIZED, "Incorrect password");
   }
 
   const userTokens = createUserToken(isUserExist);

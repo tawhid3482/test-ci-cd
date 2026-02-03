@@ -12,7 +12,7 @@ router.post("/verify-otp", authController.verifyOtp);
 
 router.post(
   "/login",
-  validateRequest(authValidation.authValidationSchema),
+  // validateRequest(authValidation.authValidationSchema),
   authController.userLogin,
 );
 
