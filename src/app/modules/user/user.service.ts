@@ -8,31 +8,44 @@ const prisma = new PrismaClient();
 
 const userSignUp = async (payload: any) => {
   const isUserExits = await prisma.user.findUnique({
-    where: {
-      email: payload.email,
-    },
+    where: { email: payload.email },
   });
+
   if (isUserExits) {
-    throw new AppError(404, "User Already exits");
+    throw new AppError(409, "User already exists");
   }
+
   const hashedPassword = await bcrypt.hash(payload.password, 12);
-  const result = await prisma.$transaction(async (tx:any) => {
+
+  // 🔥 heavy logic BEFORE transaction
+  let tutorId: string | null = null;
+  let studentId: string | null = null;
+
+  if (payload.role === Role.TUTOR) {
+    tutorId = await generateTutorId(payload.gender);
+  }
+
+  if (payload.role === Role.STUDENT) {
+    studentId = await generateStudentId();
+  }
+
+  const result = await prisma.$transaction(async (tx: any) => {
     const user = await tx.user.create({
       data: {
         name: payload.name,
         email: payload.email,
         password: hashedPassword,
-        phone: payload.phone,
+        phone: payload.phone || null,
         role: payload.role,
         gender: payload.gender,
       },
     });
 
-    if (payload.role === Role.TUTOR) {
+    if (payload.role === Role.TUTOR && tutorId) {
       await tx.tutor.create({
         data: {
           userId: user.id,
-          tutor_id: await generateTutorId(payload.gender),
+          tutor_id: tutorId,
           district: payload.district,
           thana: payload.thana,
           area: [],
@@ -47,22 +60,22 @@ const userSignUp = async (payload: any) => {
       });
     }
 
-    if (payload.role === Role.STUDENT) {
+    if (payload.role === Role.STUDENT && studentId) {
       await tx.student.create({
         data: {
           userId: user.id,
-          student_id: await generateStudentId(),
+          student_id: studentId,
         },
       });
     }
 
     const { password, ...safeUser } = user;
-
     return safeUser;
   });
 
   return result;
 };
+
 
 const getAllUsers = async () => {
   const users = await prisma.user.findMany({

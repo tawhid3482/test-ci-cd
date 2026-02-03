@@ -3,6 +3,7 @@ import { AuthRoute } from "../modules/auth/auth.route";
 import { userRoute } from "../modules/user/user.route";
 import { webSettingRoute } from "../modules/websetting/webSetting.route";
 import { contactRoute } from "../modules/contact/contact.route";
+import { districtRoute } from "../modules/district/district.route";
 
 const router = Router();
 
@@ -22,6 +23,10 @@ const modules = [
   {
     path: "/contact",
     route: contactRoute,
+  },
+  {
+    path: "/district",
+    route: districtRoute,
   },
 ];
 

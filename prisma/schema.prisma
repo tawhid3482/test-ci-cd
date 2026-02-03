@@ -17,6 +17,7 @@ model User {
   avatar    String?
   gender    EGender?
   status    STATUS   @default(ACTIVE)
+  acceptTerms Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tutors    Tutor[]
@@ -136,6 +137,15 @@ model Contact {
   email    String
   priority priorityStatus @default(Normal)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model District {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  thanas    String[]
+  areas     String[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
