@@ -6,5 +6,6 @@ const router = Router();
 
 router.post("/signup",  userController.userSignUp);
 router.get("/allUsers", auth("ADMIN","SUPER_ADMIN"), userController.getAllUsers);
+router.get("/me", auth("ADMIN","SUPER_ADMIN","STUDENT","MANAGER","TUTOR"), userController.getMyProfile);
 
 export const userRoute = router;

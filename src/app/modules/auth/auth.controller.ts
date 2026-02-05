@@ -11,7 +11,7 @@ import AppError from "../../helpers/AppError";
 import { OTPService } from "./otp.service";
 
 const sendOtp = catchAsync(async (req: Request, res: Response) => {
-   await OTPService.sendOTP(req.body);
+  await OTPService.sendOTP(req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -140,6 +140,59 @@ const forgotPassword = catchAsync(
   },
 );
 
+const getSession = catchAsync(async (req: Request, res: Response) => {
+  const token = req.cookies?.accessToken;
+
+  if (!token) {
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "No active session",
+      data: {
+        isAuthenticated: false,
+        user: null,
+      },
+    });
+    return;
+  }
+
+  try {
+    const user = await authService.getSession(token as string);
+    if (!user) {
+      sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: "Invalid session",
+        data: {
+          isAuthenticated: false,
+          user: null,
+        },
+      });
+      return;
+    }
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Session retrieved successfully",
+      data: {
+        isAuthenticated: true,
+        user,
+      },
+    });
+  } catch {
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Session expired",
+      data: {
+        isAuthenticated: false,
+        user: null,
+      },
+    });
+  }
+});
+
 export const authController = {
   userLogin,
   getNewAccessToken,
@@ -149,5 +202,6 @@ export const authController = {
   forgotPassword,
   sendOtp,
   resendOtp,
+  getSession,
   verifyOtp,
 };

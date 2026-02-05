@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
 export const createUserToken = (user: any) => {
   const jwtPayload = {
-    id: user._id,
+    id: user.id,
     email: user.email,
     role: user.role,
   };

@@ -119,10 +119,32 @@ const changePassword = async (
   });
 };
 
+const getSession = async (token: string) => {
+  const decoded = jwt.verify(
+    token,
+    envVars.JWT_ACCESS_SECRET as string,
+  ) as JwtPayload;
+
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.id },
+    select: {
+      id: true,
+      email: true,
+      avatar: true,
+      role: true,
+      name: true,
+      status: true,
+    },
+  });
+
+  return user;
+};
+
 export const authService = {
   userLogin,
   getNewAccessToken,
   resetPassword,
   changePassword,
   forgotPassword,
+  getSession,
 };

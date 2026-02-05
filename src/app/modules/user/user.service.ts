@@ -76,13 +76,29 @@ const userSignUp = async (payload: any) => {
   return result;
 };
 
-
 const getAllUsers = async () => {
   const users = await prisma.user.findMany({
-    orderBy:{
-      createdAt:"desc"
+    orderBy: {
+      createdAt: "desc",
     },
-    select: { 
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      gender: true,
+      createdAt: true,
+    },
+  });
+  return users;
+};
+const getMyProfile = async (user: any) => {
+  const users = await prisma.user.findUnique({
+    where: {
+      id: user.id,
+    },
+    select: {
       id: true,
       name: true,
       email: true,
@@ -97,5 +113,6 @@ const getAllUsers = async () => {
 
 export const userService = {
   userSignUp,
-  getAllUsers
+  getAllUsers,
+  getMyProfile
 };
