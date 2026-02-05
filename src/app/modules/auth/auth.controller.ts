@@ -76,11 +76,16 @@ const getNewAccessToken = catchAsync(async (req: Request, res: Response) => {
 const logout = catchAsync(async (req: Request, res: Response) => {
   res.clearCookie("accessToken", {
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === "production", // ✅ secure in prod
+    sameSite: "lax", // ✅ important for cross-site
+    path: "/", // ✅ must match cookie path when set
   });
+
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
   });
 
   sendResponse(res, {
