@@ -34,7 +34,7 @@ const sendOTP = async (payload: { email: string; name: string }) => {
     expiresIn: "5 minutes",
   });
 
-  sendEmail(email, subject, html).catch(console.error);
+  await sendEmail(email, subject, html).catch(console.error);
 
   return;
 };
