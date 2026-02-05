@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String?
-  email     String   @unique
-  password  String
-  phone     String?  @unique
-  role      Role
-  avatar    String?
-  gender    EGender?
-  status    STATUS   @default(ACTIVE)
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String?
+  email       String   @unique
+  password    String
+  phone       String?  @unique
+  role        Role
+  avatar      String?
+  gender      EGender?
+  status      STATUS   @default(ACTIVE)
   acceptTerms Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tutors    Tutor[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tutors      Tutor[]
 }
 
 model OTP {
@@ -146,6 +146,32 @@ model District {
   name      String
   thanas    String[]
   areas     String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TuitionJobs {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                  String   @db.ObjectId
+  jobs_id                 String   @unique
+  student_name            String
+  phone                   String
+  subject                 String[]
+  classes                 String[]
+  medium                  String
+  days_per_week           String
+  district                String
+  thana                   String
+  area                    String
+  min_salary              String
+  max_salary              String
+  negotiable              Boolean  @default(false)
+  additional_requirements String?
+  student_number          String
+  student_gender          EGender
+  tutor_gender            EGender?
+  status                  String   @default("Active")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
