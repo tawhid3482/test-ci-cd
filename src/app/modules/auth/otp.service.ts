@@ -3,10 +3,18 @@ import { PrismaClient } from "@prisma/client";
 import { generateOTP } from "../../utils/otpGenerate";
 import { sendOtpTemplate } from "../../utils/sendOtpTemplete";
 import sendEmail from "../../utils/sendEmail";
+import AppError from "../../helpers/AppError";
 
 const prisma = new PrismaClient();
 
 const sendOTP = async (payload: { email: string; name: string }) => {
+  const isUserExist = await prisma.user.findUnique({
+    where: { email: payload.email },
+  });
+  if (isUserExist) {
+    throw new AppError(httpStatus.NOT_FOUND, "User already exists");
+  }
+
   await prisma.oTP.deleteMany({ where: { email: payload.email } });
   const { email, name } = payload;
   const otp = generateOTP();
