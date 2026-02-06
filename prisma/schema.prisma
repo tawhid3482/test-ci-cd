@@ -176,6 +176,48 @@ model TuitionJobs {
   updatedAt DateTime @updatedAt
 }
 
+model DeviceToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String
+  token     String   @unique
+  platform  String? // web | android | ios
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model notification {
+  id              String                @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  message         String
+  type            notificationType
+  status          notificationStatus
+  target_audience notification_audience
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+}
+
+enum notificationStatus {
+  active
+  inactive
+}
+
+enum notificationType {
+  info
+  warning
+  success
+  urgent
+}
+
+enum notification_audience {
+  All
+  TUTOR
+  STUDENT
+  MANAGER
+  ADMIN
+}
+
 enum DocumentType {
   MARK_SHEET
   INSTITUTE_ID
