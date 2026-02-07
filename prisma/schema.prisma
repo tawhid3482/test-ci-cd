@@ -8,19 +8,20 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String?
-  email       String   @unique
-  password    String
-  phone       String?  @unique
-  role        Role
-  avatar      String?
-  gender      EGender?
-  status      STATUS   @default(ACTIVE)
-  acceptTerms Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tutors      Tutor[]
+  id                String             @id @default(auto()) @map("_id") @db.ObjectId
+  name              String?
+  email             String             @unique
+  password          String
+  phone             String?            @unique
+  role              Role
+  avatar            String?
+  gender            EGender?
+  status            STATUS             @default(ACTIVE)
+  acceptTerms       Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tutors            Tutor[]
+  userNotifications UserNotification[]
 }
 
 model OTP {
@@ -186,7 +187,23 @@ model DeviceToken {
   @@index([userId])
 }
 
-model notification {
+model UserNotification {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String       @db.ObjectId
+  notificationId String       @db.ObjectId
+  notification   Notification @relation(fields: [notificationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, notificationId])
+  @@index([userId])
+  @@index([notificationId])
+}
+
+// Notification মডেলে যদি relation না থাকে তবে যোগ করুন
+model Notification {
   id              String                @id @default(auto()) @map("_id") @db.ObjectId
   title           String
   message         String
@@ -196,6 +213,8 @@ model notification {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
+  // নতুন relation যোগ করুন
+  userNotifications UserNotification[]
 }
 
 enum notificationStatus {
