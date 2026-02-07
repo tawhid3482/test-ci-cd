@@ -262,8 +262,23 @@ const notifyUser = async (
   });
 };
 
-// ✅ নতুন ফাংশন: ইউজারের জন্য unread নোটিফিকেশন fetch করা
+const deleteOldReadNotifications = async () => {
+  const tenDaysAgo = new Date();
+  tenDaysAgo.setDate(tenDaysAgo.getDate() - 1);
+
+  await prisma.userNotification.deleteMany({
+    where: {
+      isRead: true,
+      createdAt: {
+        lt: tenDaysAgo,
+      },
+    },
+  });
+};
+
 const getUserNotifications = async (userId: string) => {
+  await deleteOldReadNotifications();
+
   return await prisma.userNotification.findMany({
     where: {
       userId,
@@ -273,12 +288,11 @@ const getUserNotifications = async (userId: string) => {
       notification: true,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 };
 
-// ✅ নতুন ফাংশন: নোটিফিকেশন পড়া হয়ে গেছে mark করা
 const markNotificationAsRead = async (userNotificationId: string) => {
   return await prisma.userNotification.update({
     where: { id: userNotificationId },
@@ -286,10 +300,8 @@ const markNotificationAsRead = async (userNotificationId: string) => {
   });
 };
 
-// ✅ নতুন ফাংশন: ইউজার লগইন করলে পুরানো নোটিফিকেশন পাঠানো
 const sendPendingNotifications = async (userId: string) => {
   try {
-    // 1. ইউজারের device token গুলো fetch করুন
     const deviceTokens = await prisma.deviceToken.findMany({
       where: { userId },
       select: { token: true },
@@ -297,13 +309,11 @@ const sendPendingNotifications = async (userId: string) => {
 
     if (deviceTokens.length === 0) return;
 
-    // 2. ইউজারের unread নোটিফিকেশন গুলো fetch করুন
     const pendingNotifications = await prisma.userNotification.findMany({
       where: {
         userId,
         isRead: false,
         createdAt: {
-          // শুধুমাত্র শেষ ৭ দিনের নোটিফিকেশন
           gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
         },
       },
@@ -316,7 +326,6 @@ const sendPendingNotifications = async (userId: string) => {
       take: 10, // সর্বোচ্চ ১০টি নোটিফিকেশন
     });
 
-    // 3. প্রতিটি pending notification জন্য push notification পাঠান
     for (const userNotification of pendingNotifications) {
       const notification = userNotification.notification;
       
@@ -334,7 +343,6 @@ const sendPendingNotifications = async (userId: string) => {
         },
       });
 
-      // 4. পাঠানোর পর read mark করুন (optional)
       await prisma.userNotification.update({
         where: { id: userNotification.id },
         data: { isRead: true },
@@ -351,5 +359,5 @@ export const NotificationService = {
   notifyUser,
   getUserNotifications,
   markNotificationAsRead,
-  sendPendingNotifications, // ✅ নতুন ফাংশন এক্সপোর্ট করুন
+  sendPendingNotifications, 
 };
