@@ -153,24 +153,24 @@ model District {
 
 model TuitionJobs {
   id                      String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId                  String   @db.ObjectId
+  userId                  String?   @db.ObjectId
   jobs_id                 String   @unique
   student_name            String
   phone                   String
   subject                 String[]
   classes                 String[]
-  medium                  String
+  medium                  String[]
   days_per_week           String
   district                String
   thana                   String
-  area                    String
+  area                    String[]
   min_salary              String
   max_salary              String
   negotiable              Boolean  @default(false)
   additional_requirements String?
   student_number          String
   student_gender          EGender
-  tutor_gender            EGender?
+  tutor_gender            String?
   status                  String   @default("Active")
 
   createdAt DateTime @default(now())
@@ -202,7 +202,6 @@ model UserNotification {
   @@index([notificationId])
 }
 
-// Notification মডেলে যদি relation না থাকে তবে যোগ করুন
 model Notification {
   id              String                @id @default(auto()) @map("_id") @db.ObjectId
   title           String
@@ -213,8 +212,25 @@ model Notification {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  // নতুন relation যোগ করুন
   userNotifications UserNotification[]
+}
+model Subjects {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Medium {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Classes {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum notificationStatus {

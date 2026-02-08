@@ -13,6 +13,7 @@ const createTuitionJobs = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
 const getAllTuitionJobs = catchAsync(async (req: Request, res: Response) => {
   const result = await tuitionJobsService.getAllTuitionJobs();
   sendResponse(res, {

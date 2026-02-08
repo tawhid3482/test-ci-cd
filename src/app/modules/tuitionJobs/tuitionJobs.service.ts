@@ -1,15 +1,23 @@
 import httpStatus from "http-status";
 import { PrismaClient, Role } from "@prisma/client";
+import { generateJobId } from "./tuitionJobs.generateId";
 
 const prisma = new PrismaClient();
 
 const createTuitionJobs = async (payload: any) => {
+
+  const jobs_id = await generateJobId();
+
   const result = await prisma.tuitionJobs.create({
-    data: payload,
+    data: {
+      ...payload,
+      jobs_id,
+    },
   });
 
   return result;
 };
+
 
 const getAllTuitionJobs = async () => {
   const tuitionJobs = await prisma.tuitionJobs.findMany({

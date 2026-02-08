@@ -1,16 +1,9 @@
-import { z } from "zod";
+import { string, z } from "zod";
 
 export const GenderEnum = z.enum(["Male", "Female", "Other"]);
 
 export const createTuitionJobSchema = z.object({
-  userId: z
-    .string()
-    .min(1, "User ID is required"),
-
-  jobs_id: z
-    .string()
-    .min(1, "Job ID is required"),
-
+  userId:z.string().optional(),
   student_name: z
     .string()
     .min(2, "Student name must be at least 2 characters"),
@@ -28,8 +21,8 @@ export const createTuitionJobSchema = z.object({
     .min(1, "At least one class is required"),
 
   medium: z
-    .string()
-    .min(1, "Medium is required"),
+     .array(z.string().min(1))
+    .min(1, "At least one class is required"),
 
   days_per_week: z
     .string()
@@ -44,8 +37,8 @@ export const createTuitionJobSchema = z.object({
     .min(1, "Thana is required"),
 
   area: z
-    .string()
-    .min(1, "Area is required"),
+     .array(z.string().min(1))
+    .min(1, "At least one class is required"),
 
   min_salary: z
     .string()
@@ -70,7 +63,7 @@ export const createTuitionJobSchema = z.object({
 
   student_gender: GenderEnum,
 
-  tutor_gender: GenderEnum.optional(),
+  tutor_gender: string().optional(),
 
   status: z
     .string()

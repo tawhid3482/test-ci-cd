@@ -5,6 +5,8 @@ import { webSettingRoute } from "../modules/websetting/webSetting.route";
 import { contactRoute } from "../modules/contact/contact.route";
 import { districtRoute } from "../modules/district/district.route";
 import { notificationRouter } from "../modules/notification/notification.route";
+import { tuitionJobsRoutes } from "../modules/tuitionJobs/tuitionJobs.route";
+import { platformControlRoute } from "../modules/platformControl/platformControl.route";
 
 const router = Router();
 
@@ -32,6 +34,14 @@ const modules = [
   {
     path: "/notification",
     route: notificationRouter,
+  },
+  {
+    path: "/tutor-jobs",
+    route: tuitionJobsRoutes,
+  },
+  {
+    path: "/platform-control",
+    route: platformControlRoute,
   },
 ];
 
