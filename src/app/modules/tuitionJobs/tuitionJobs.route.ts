@@ -6,7 +6,7 @@ import { createTuitionJobSchema } from "./tuitionJobs.validation";
 
 const router = Router();
 
-router.post("/create", auth(),validateRequest(createTuitionJobSchema), tuitionJobsController.createTuitionJobs);
+router.post("/create", validateRequest(createTuitionJobSchema), tuitionJobsController.createTuitionJobs);
 
 router.get("/",tuitionJobsController.getAllTuitionJobs);
 

@@ -24,6 +24,16 @@ const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAllDistrictTutors = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getAllDistrictTutors();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "All Tutors Count successfully",
+    data: result,
+  });
+});
+
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.getMyProfile(req.user);
   sendResponse(res, {
@@ -39,5 +49,6 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
 export const userController = {
 userSignUp,
 getAllUsers,
-getMyProfile
+getMyProfile,
+getAllDistrictTutors
 };

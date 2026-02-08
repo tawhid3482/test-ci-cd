@@ -93,6 +93,28 @@ const getAllUsers = async () => {
   });
   return users;
 };
+
+const getAllDistrictTutors = async () => {
+  const result = await prisma.tutor.groupBy({
+    by: ["district"],
+    where: {
+      district: {
+        not: null,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  // response format transform
+  return result.map((item) => ({
+    town: item.district,
+    count: item._count._all,
+  }));
+};
+
+
 const getMyProfile = async (user: any) => {
   const users = await prisma.user.findUnique({
     where: {
@@ -114,5 +136,6 @@ const getMyProfile = async (user: any) => {
 export const userService = {
   userSignUp,
   getAllUsers,
-  getMyProfile
+  getMyProfile,
+  getAllDistrictTutors
 };
