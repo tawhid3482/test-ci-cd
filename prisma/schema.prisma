@@ -171,7 +171,7 @@ model TuitionJobs {
   student_number          String
   student_gender          EGender
   tutor_gender            String?
-  status                  String   @default("Active")
+  status                  String   @default("Inactive")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
