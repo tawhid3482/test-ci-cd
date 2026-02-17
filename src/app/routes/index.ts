@@ -3,10 +3,7 @@ import { AuthRoute } from "../modules/auth/auth.route";
 import { userRoute } from "../modules/user/user.route";
 import { webSettingRoute } from "../modules/websetting/webSetting.route";
 import { contactRoute } from "../modules/contact/contact.route";
-import { districtRoute } from "../modules/district/district.route";
 import { notificationRouter } from "../modules/notification/notification.route";
-import { tuitionJobsRoutes } from "../modules/tuitionJobs/tuitionJobs.route";
-import { platformControlRoute } from "../modules/platformControl/platformControl.route";
 
 const router = Router();
 
@@ -27,22 +24,13 @@ const modules = [
     path: "/contact",
     route: contactRoute,
   },
-  {
-    path: "/district",
-    route: districtRoute,
-  },
+
   {
     path: "/notification",
     route: notificationRouter,
   },
-  {
-    path: "/tutor-jobs",
-    route: tuitionJobsRoutes,
-  },
-  {
-    path: "/platform-control",
-    route: platformControlRoute,
-  },
+
+
 ];
 
 modules.forEach((route) => {
