@@ -12,15 +12,14 @@ model User {
   name              String?
   email             String             @unique
   password          String
-  phone             String?            @unique
-  role              Role
+  phone             String            @unique
+  role              Role  @default(USER)
   avatar            String?
   gender            EGender?
   status            STATUS             @default(ACTIVE)
   acceptTerms       Boolean            @default(false)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  tutors            Tutor[]
   userNotifications UserNotification[]
 }
 
@@ -32,52 +31,6 @@ model OTP {
   verified  Boolean  @default(false)
 
   createdAt DateTime @default(now())
-}
-
-model Tutor {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String   @db.ObjectId
-  tutor_id          String   @unique
-  background        String[]
-  skills            String[]
-  institute_name    String?
-  department        String?
-  year              String?
-  bio               String?
-  social_link       String?
-  present_address   String?
-  permanent_address String?
-
-  //tuition location
-  district String?
-  thana    String?
-  area     String[]
-
-  nationality String?
-  religion    String?
-
-  //tuition
-  classes           String[]
-  medium            String[]
-  subjects          String[]
-  tutor_method      String?
-  days_per_week     String?
-  availability_days String[]
-  available_time    String[]
-  expected_salary   String?
-  experience        String?
-  educational_info  String[]
-
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents Document[]
-}
-
-model Student {
-  id         String @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String @db.ObjectId
-  student_id String @unique
 }
 
 model WebSetting {
@@ -117,61 +70,12 @@ model WebSetting {
   updatedAt DateTime @updatedAt
 }
 
-model Document {
-  id          String       @id @default(auto()) @map("_id") @db.ObjectId
-  tutorId     String       @db.ObjectId
-  type        DocumentType
-  file_url    String
-  file_type   String? // PDF or Image
-  uploaded_at DateTime     @default(now())
-
-  // Relations
-  tutor Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-
-  @@map("documents")
-}
-
 model Contact {
   id       String         @id @default(auto()) @map("_id") @db.ObjectId
   title    String
   message  String
   email    String
   priority priorityStatus @default(Normal)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model District {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  thanas    String[]
-  areas     String[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model TuitionJobs {
-  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId                  String?   @db.ObjectId
-  jobs_id                 String   @unique
-  student_name            String
-  phone                   String
-  subject                 String[]
-  classes                 String[]
-  medium                  String[]
-  days_per_week           String
-  district                String
-  thana                   String
-  area                    String[]
-  min_salary              String
-  max_salary              String
-  negotiable              Boolean  @default(false)
-  additional_requirements String?
-  student_number          String
-  student_gender          EGender
-  tutor_gender            String?
-  status                  String   @default("Inactive")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -214,24 +118,6 @@ model Notification {
 
   userNotifications UserNotification[]
 }
-model Subjects {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-model Medium {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-model Classes {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
 
 enum notificationStatus {
   active
@@ -253,17 +139,11 @@ enum notification_audience {
   ADMIN
 }
 
-enum DocumentType {
-  MARK_SHEET
-  INSTITUTE_ID
-}
-
 enum Role {
   SUPER_ADMIN
   ADMIN
-  STUDENT
   MANAGER
-  TUTOR
+  USER
 }
 
 enum priorityStatus {

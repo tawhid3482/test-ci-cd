@@ -12,10 +12,9 @@ router.get(
 );
 router.get(
   "/me",
-  auth("ADMIN", "SUPER_ADMIN", "STUDENT", "MANAGER", "TUTOR"),
+  auth("ADMIN", "SUPER_ADMIN", "USER", "MANAGER", ),
   userController.getMyProfile,
 );
 
-router.get("/district-tutors", userController.getAllDistrictTutors);
 
 export const userRoute = router;
