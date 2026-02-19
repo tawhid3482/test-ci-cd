@@ -1,10 +1,9 @@
-
-import { Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import { NotificationService } from "./notification.service";
 import { catchAsync } from "../../utils/catchAsync";
 
 export const saveToken = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.params.userId as string;
+  const userId = req.user?.id as string;
   const { token, platform } = req.body;
 
   await NotificationService.saveDeviceToken(userId, token, platform);
@@ -15,7 +14,6 @@ export const saveToken = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// 🔐 ADMIN sends notification
 export const sendNotificationByRole = catchAsync(async (req, res) => {
   await NotificationService.sendNotificationByAudience(req.body);
 
@@ -25,10 +23,9 @@ export const sendNotificationByRole = catchAsync(async (req, res) => {
   });
 });
 
-// 🧪 Test single user
 export const sendTestNotification = catchAsync(async (req, res) => {
   await NotificationService.notifyUser(req.params.userId as string, {
-    title: "Hello 👋",
+    title: "Hello",
     body: "Test notification",
     data: { type: "test" },
   });
@@ -36,10 +33,8 @@ export const sendTestNotification = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-
-// ✅ নতুন: ইউজারের নোটিফিকেশন পাওয়া
 export const getUserNotifications = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.params.userId as string;
+  const userId = req.user?.id as string;
   const notifications = await NotificationService.getUserNotifications(userId);
 
   res.json({
@@ -49,10 +44,21 @@ export const getUserNotifications = catchAsync(async (req: Request, res: Respons
   });
 });
 
-// ✅ নতুন: নোটিফিকেশন read mark করা
 export const markAsRead = catchAsync(async (req: Request, res: Response) => {
   const { userNotificationId } = req.params;
-  await NotificationService.markNotificationAsRead(userNotificationId as string);
+  const userId = req.user?.id as string;
+  const isUpdated = await NotificationService.markNotificationAsRead(
+    userNotificationId as string,
+    userId,
+  );
+
+  if (!isUpdated) {
+    res.status(404).json({
+      success: false,
+      message: "Notification not found",
+    });
+    return;
+  }
 
   res.json({
     success: true,
@@ -60,9 +66,8 @@ export const markAsRead = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// ✅ নতুন: ইউজার লগইন করলে পুরানো নোটিফিকেশন পাঠানো
 export const syncPendingNotifications = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.params.userId as string;
+  const userId = req.user?.id as string;
   await NotificationService.sendPendingNotifications(userId);
 
   res.json({

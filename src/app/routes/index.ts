@@ -4,6 +4,8 @@ import { userRoute } from "../modules/user/user.route";
 import { webSettingRoute } from "../modules/websetting/webSetting.route";
 import { contactRoute } from "../modules/contact/contact.route";
 import { notificationRouter } from "../modules/notification/notification.route";
+import { categoryRoute } from "../modules/categories/categories.route";
+import { ProductRoute } from "../modules/products/products.route";
 
 const router = Router();
 
@@ -29,6 +31,16 @@ const modules = [
     path: "/notification",
     route: notificationRouter,
   },
+
+  {
+    path: "/categories",
+    route: categoryRoute,
+  },
+  {
+    path: "/products",
+    route: ProductRoute,
+  },
+ 
 
 
 ];

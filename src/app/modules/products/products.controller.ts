@@ -1,6 +1,5 @@
-import { NextFunction, Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import httpStatus from "http-status";
-
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { ProductService } from "./products.service";
@@ -26,9 +25,9 @@ const getProduct = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-const getSingleProduct = catchAsync(async (req: Request, res: Response) => {
-  const productId = req.params.ProductId as string;
 
+const getSingleProduct = catchAsync(async (req: Request, res: Response) => {
+  const productId = req.params.productId as string;
   const result = await ProductService.getSingleProduct(productId);
 
   sendResponse(res, {
@@ -40,8 +39,7 @@ const getSingleProduct = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateProduct = catchAsync(async (req: Request, res: Response) => {
-  const productId = req.params.ProductId as string;
-
+  const productId = req.params.productId as string;
   const result = await ProductService.updateProduct(productId, req.body);
 
   sendResponse(res, {
@@ -54,7 +52,6 @@ const updateProduct = catchAsync(async (req: Request, res: Response) => {
 
 const deleteProduct = catchAsync(async (req: Request, res: Response) => {
   const productId = req.params.productId as string;
-
   const result = await ProductService.deleteProduct(productId);
 
   sendResponse(res, {

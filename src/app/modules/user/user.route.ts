@@ -1,20 +1,24 @@
-import { Router } from "express";
+﻿import { Router } from "express";
+import { Role } from "@prisma/client";
 import { userController } from "./user.controller";
 import { auth } from "../../middlewares/authMiddleware";
+import { validateRequest } from "../../middlewares/validateRequest";
+import { userValidation } from "./user.validation";
 
 const router = Router();
 
-router.post("/signup", userController.userSignUp);
+router.post("/signup", validateRequest(userValidation.userSignUpSchema), userController.userSignUp);
+
 router.get(
   "/allUsers",
-  auth("ADMIN", "SUPER_ADMIN"),
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
   userController.getAllUsers,
 );
+
 router.get(
   "/me",
-  auth("ADMIN", "SUPER_ADMIN", "USER", "MANAGER", ),
+  auth(Role.ADMIN, Role.SUPER_ADMIN, Role.USER, Role.MANAGER),
   userController.getMyProfile,
 );
-
 
 export const userRoute = router;

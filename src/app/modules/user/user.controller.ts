@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import httpStatus from "http-status";
-
+import AppError from "../../helpers/AppError";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { userService } from "./user.service";
@@ -14,6 +14,7 @@ const userSignUp = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.getAllUsers();
   sendResponse(res, {
@@ -24,10 +25,12 @@ const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
-
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
-  const result = await userService.getMyProfile(req.user);
+  if (!req.user?.id) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized access");
+  }
+
+  const result = await userService.getMyProfile({ id: req.user.id });
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

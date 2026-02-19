@@ -1,4 +1,4 @@
-import httpStatus from "http-status";
+﻿import httpStatus from "http-status";
 import bcrypt from "bcryptjs";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
@@ -17,18 +17,19 @@ const userLogin = async (
 ) => {
   const { email, password } = payload;
 
-  const isUserExist = await prisma.user.findUnique({ where: { email } });
-  if (!isUserExist) {
-    throw new AppError(httpStatus.NOT_FOUND, "User does not exist");
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid credentials");
   }
-  const isPasswordMatch = await bcrypt.compare(password!, isUserExist.password);
+
+  const isPasswordMatch = await bcrypt.compare(password!, user.password);
   if (!isPasswordMatch) {
-    throw new AppError(httpStatus.UNAUTHORIZED, "Incorrect password");
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid credentials");
   }
 
-  const userTokens = createUserToken(isUserExist);
+  const userTokens = createUserToken(user);
+  const { password: _, ...rest } = user;
 
-  const { password: _, ...rest } = isUserExist;
   return {
     accessToken: userTokens.accessToken,
     refreshToken: userTokens.refreshToken,
@@ -43,15 +44,31 @@ const getNewAccessToken = async (refreshToken: string) => {
 };
 
 const resetPassword = async (payload: {
-  email: string;
+  token: string;
   newPassword: string;
 }) => {
-  const user = await prisma.user.findUnique({
-    where: { email: payload.email },
-  });
-  if (!user) throw { status: 401, message: "User does not exist" };
-  if (user.status === "SUSPENDED")
-    throw { status: 401, message: "User already deleted" };
+  let decoded: JwtPayload;
+
+  try {
+    decoded = jwt.verify(
+      payload.token,
+      envVars.JWT_ACCESS_SECRET,
+    ) as JwtPayload;
+  } catch {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid or expired reset token");
+  }
+
+  const userId = decoded.userId as string | undefined;
+  const email = decoded.email as string | undefined;
+
+  if (!userId || !email) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid reset payload");
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.email !== email) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid or expired reset token");
+  }
 
   const hashedPassword = await bcrypt.hash(
     payload.newPassword,
@@ -59,20 +76,18 @@ const resetPassword = async (payload: {
   );
 
   await prisma.user.update({
-    where: { email: payload.email },
+    where: { id: userId },
     data: { password: hashedPassword },
   });
 };
 
 const forgotPassword = async (email: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user)
-    throw { status: httpStatus.BAD_REQUEST, message: "User does not exist" };
-  if (["SUSPENDED", "INACTIVE"].includes(user.status))
-    throw {
-      status: httpStatus.BAD_REQUEST,
-      message: `User is ${user.status}`,
-    };
+
+  // Avoid user enumeration through response behavior.
+  if (!user || ["SUSPENDED", "INACTIVE"].includes(user.status)) {
+    return;
+  }
 
   const resetToken = jwt.sign(
     { userId: user.id, email: user.email, role: user.role },
@@ -80,14 +95,11 @@ const forgotPassword = async (email: string) => {
     { expiresIn: "10m" },
   );
 
-  const resetUILink = `${envVars.FRONTEND_URL}/reset-password?id=${user.id}&token=${resetToken}`;
+  const resetUILink = `${envVars.FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-  // await sendEmail({
-  //   to: user.email,
-  //   subject: "Password Reset",
-  //   templateName: "forgetPassword",
-  //   templateData: { role: user.role, resetUILink },
-  // });
+  const html = `<p>Click the link below to reset your password. This link expires in 10 minutes.</p><p><a href="${resetUILink}">Reset Password</a></p>`;
+
+  await sendEmail(user.email, "Password Reset", html);
 };
 
 const changePassword = async (
@@ -98,15 +110,20 @@ const changePassword = async (
   const user = await prisma.user.findUnique({
     where: { id: decodedToken.id as string },
   });
-  if (!user)
-    throw { status: httpStatus.UNAUTHORIZED, message: "User not found" };
+
+  if (!user) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "User not found");
+  }
 
   const isOldPasswordMatch = await bcrypt.compare(oldPassword, user.password);
-  if (!isOldPasswordMatch)
-    throw {
-      status: httpStatus.UNAUTHORIZED,
-      message: "Old password does not match",
-    };
+  if (!isOldPasswordMatch) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Old password does not match");
+  }
+
+  const isSamePassword = await bcrypt.compare(newPassword, user.password);
+  if (isSamePassword) {
+    throw new AppError(httpStatus.BAD_REQUEST, "New password must be different");
+  }
 
   const hashedPassword = await bcrypt.hash(
     newPassword,
@@ -120,8 +137,12 @@ const changePassword = async (
 };
 
 const getSession = async (token: string) => {
+  const normalizedToken = token.startsWith("Bearer ")
+    ? token.split(" ")[1]
+    : token;
+
   const decoded = jwt.verify(
-    token,
+    normalizedToken,
     envVars.JWT_ACCESS_SECRET as string,
   ) as JwtPayload;
 

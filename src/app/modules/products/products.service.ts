@@ -1,50 +1,68 @@
-import httpStatus from "http-status";
-import { PrismaClient } from "@prisma/client";
-import sendEmail from "../../utils/sendEmail";
-import { envVars } from "../../config/env";
+﻿import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const createProduct = async (payload: any) => {
-  const Product = await prisma.categories.create({
+type ProductPayload = {
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  images: string[];
+  categoryId: string;
+};
+
+const createProduct = async (payload: ProductPayload) => {
+  const product = await prisma.product.create({
     data: payload,
   });
 
-  return Product;
+  return product;
 };
 
 const getProduct = async () => {
-  const result = await prisma.categories.findMany({
+  const result = await prisma.product.findMany({
+    where: {
+      status: "ACTIVE",
+    },
     orderBy: {
       createdAt: "desc",
     },
   });
+
   return result;
 };
-const getSingleProduct = async (id:string) => {
-  const result = await prisma.categories.findUnique({
+
+const getSingleProduct = async (id: string) => {
+  const result = await prisma.product.findFirst({
     where: {
-      id
+      id,
+      status: "ACTIVE",
     },
   });
   return result;
 };
 
-const updateProduct = async (id: string, payload: any) => {
-  const result = await prisma.categories.update({
+const updateProduct = async (id: string, payload: Partial<ProductPayload>) => {
+  const result = await prisma.product.update({
     where: {
       id,
     },
     data: payload,
   });
+
   return result;
 };
+
 const deleteProduct = async (id: string) => {
-  const result = await prisma.categories.delete({
+  const result = await prisma.product.update({
     where: {
       id,
     },
+    data: {
+      status: "INACTIVE",
+    },
   });
+
   return result;
 };
 

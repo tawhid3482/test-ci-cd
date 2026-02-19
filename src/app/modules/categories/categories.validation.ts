@@ -1,10 +1,18 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
-export const createCategorySchema = z.object({
+const categoryBaseSchema = {
   name: z
     .string()
     .min(3, "Title must be at least 3 characters long")
     .max(100, "Title cannot exceed 100 characters"),
+  image: z.string().url().optional(),
+};
 
-  image: z.string().optional(),
-});
+export const createCategorySchema = z.object(categoryBaseSchema).strict();
+
+export const updateCategorySchema = z
+  .object({
+    name: categoryBaseSchema.name.optional(),
+    image: categoryBaseSchema.image,
+  })
+  .strict();
