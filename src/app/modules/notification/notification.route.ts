@@ -19,7 +19,7 @@ router.post(
 );
 
 router.post("/send", auth(Role.ADMIN, Role.SUPER_ADMIN), sendNotificationByRole);
-router.post("/test/:userId", auth(Role.ADMIN, Role.SUPER_ADMIN), sendTestNotification);
+router.post("/test/:userId", sendTestNotification);
 
 router.get(
   "/user",

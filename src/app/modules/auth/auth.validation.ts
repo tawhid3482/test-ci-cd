@@ -2,7 +2,7 @@
 
 const passwordSchema = z
   .string()
-  .min(8, { message: "Password must be at least 8 characters" })
+  .min(6, { message: "Password must be at least 6 characters" })
   .max(72, { message: "Password is too long" });
 
 const authValidationSchema = z

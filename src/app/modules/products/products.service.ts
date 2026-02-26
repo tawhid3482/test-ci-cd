@@ -1,4 +1,4 @@
-﻿import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -21,11 +21,35 @@ const createProduct = async (payload: ProductPayload) => {
 
 const getProduct = async () => {
   const result = await prisma.product.findMany({
-    where: {
-      status: "ACTIVE",
-    },
+    // where: {
+    //   status: "ACTIVE",
+    // },
     orderBy: {
       createdAt: "desc",
+    },
+  });
+
+  return result;
+};
+
+const getCategoryProduct = async () => {
+  const result = await prisma.categories.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      products: {
+        // where: {
+        //   status: "ACTIVE",
+        // },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 8,
+      },
     },
   });
 
@@ -69,6 +93,7 @@ const deleteProduct = async (id: string) => {
 export const ProductService = {
   createProduct,
   getProduct,
+  getCategoryProduct,
   updateProduct,
   getSingleProduct,
   deleteProduct,

@@ -1,4 +1,4 @@
-﻿import { Request, Response } from "express";
+import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
@@ -22,6 +22,17 @@ const getProduct = catchAsync(async (req: Request, res: Response) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Product retrieved successfully",
+    data: result,
+  });
+});
+
+const getCategoryProduct = catchAsync(async (req: Request, res: Response) => {
+  const result = await ProductService.getCategoryProduct();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Category products retrieved successfully",
     data: result,
   });
 });
@@ -65,6 +76,7 @@ const deleteProduct = catchAsync(async (req: Request, res: Response) => {
 export const ProductController = {
   createProduct,
   getProduct,
+  getCategoryProduct,
   updateProduct,
   deleteProduct,
   getSingleProduct,

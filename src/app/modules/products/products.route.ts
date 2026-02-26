@@ -15,6 +15,7 @@ router.post(
 );
 
 router.get("/", ProductController.getProduct);
+router.get("/category-products", ProductController.getCategoryProduct);
 router.get("/:productId", ProductController.getSingleProduct);
 
 router.patch(
