@@ -1,5 +1,5 @@
 import httpStatus from "http-status";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, STATUS } from "@prisma/client";
 import sendEmail from "../../utils/sendEmail";
 import { envVars } from "../../config/env";
 
@@ -15,11 +15,35 @@ const createCategory = async (payload: any) => {
 
 const getCategory = async () => {
   const result = await prisma.categories.findMany({
+    where: {
+      status: STATUS.ACTIVE,
+    },
     orderBy: {
       createdAt: "desc",
     },
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          products: {
+            where: {
+              status: STATUS.ACTIVE,
+            },
+          },
+        },
+      },
+    },
   });
-  return result;
+
+  return result.map(({ _count, ...category }) => ({
+    ...category,
+    activeProductCount: _count.products,
+  }));
 };
 
 const updateCategory = async (id: string, payload: any) => {
@@ -46,3 +70,4 @@ export const CategoryService = {
   updateCategory,
   deleteCategory,
 };
+

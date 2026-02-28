@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, STATUS } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -21,9 +21,9 @@ const createProduct = async (payload: ProductPayload) => {
 
 const getProduct = async () => {
   const result = await prisma.product.findMany({
-    // where: {
-    //   status: "ACTIVE",
-    // },
+     where: {
+      status: STATUS.ACTIVE,  // enum use করো
+    },
     orderBy: {
       createdAt: "desc",
     },

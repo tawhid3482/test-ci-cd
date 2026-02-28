@@ -6,6 +6,8 @@ import { contactRoute } from "../modules/contact/contact.route";
 import { notificationRouter } from "../modules/notification/notification.route";
 import { categoryRoute } from "../modules/categories/categories.route";
 import { ProductRoute } from "../modules/products/products.route";
+import { cartRoute } from "../modules/cart/cart.route";
+import { wishlistRoute } from "../modules/wishlist/wishlist.route";
 
 const router = Router();
 
@@ -26,12 +28,10 @@ const modules = [
     path: "/contact",
     route: contactRoute,
   },
-
   {
     path: "/notification",
     route: notificationRouter,
   },
-
   {
     path: "/categories",
     route: categoryRoute,
@@ -40,9 +40,14 @@ const modules = [
     path: "/products",
     route: ProductRoute,
   },
- 
-
-
+  {
+    path: "/cart",
+    route: cartRoute,
+  },
+  {
+    path: "/wishlist",
+    route: wishlistRoute,
+  },
 ];
 
 modules.forEach((route) => {
