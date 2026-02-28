@@ -8,6 +8,7 @@ import { categoryRoute } from "../modules/categories/categories.route";
 import { ProductRoute } from "../modules/products/products.route";
 import { cartRoute } from "../modules/cart/cart.route";
 import { wishlistRoute } from "../modules/wishlist/wishlist.route";
+import { reviewRoute } from "../modules/review/review.route";
 
 const router = Router();
 
@@ -47,6 +48,10 @@ const modules = [
   {
     path: "/wishlist",
     route: wishlistRoute,
+  },
+  {
+    path: "/reviews",
+    route: reviewRoute,
   },
 ];
 

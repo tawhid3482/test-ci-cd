@@ -16,13 +16,14 @@ const createProduct = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getProduct = catchAsync(async (req: Request, res: Response) => {
-  const result = await ProductService.getProduct();
+  const result = await ProductService.getProduct(req.query as Record<string, unknown>);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Product retrieved successfully",
-    data: result,
+    meta: result.meta,
+    data: result.data,
   });
 });
 
@@ -33,6 +34,17 @@ const getCategoryProduct = catchAsync(async (req: Request, res: Response) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Category products retrieved successfully",
+    data: result,
+  });
+});
+const getRelatedProduct = catchAsync(async (req: Request, res: Response) => {
+  const categoryId = req.params.categoryId as string;
+  const result = await ProductService.getRelatedProduct(categoryId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Related products retrieved successfully",
     data: result,
   });
 });
@@ -80,4 +92,5 @@ export const ProductController = {
   updateProduct,
   deleteProduct,
   getSingleProduct,
+  getRelatedProduct
 };

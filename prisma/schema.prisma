@@ -88,7 +88,7 @@ model Review {
   user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String  @db.ObjectId
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  rating    String?
+  rating    Int?
   comment   String?
 }
 
@@ -202,9 +202,7 @@ enum notificationType {
 
 enum notification_audience {
   All
-  TUTOR
-  STUDENT
-  MANAGER
+  USER
   ADMIN
 }
 
