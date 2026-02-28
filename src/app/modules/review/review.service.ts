@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 type ReviewPayload = {
   productId: string;
-  rating?: string;
+  rating?: number;
   comment?: string;
 };
 
@@ -223,3 +223,4 @@ export const reviewService = {
   updateReview,
   deleteReview,
 };
+

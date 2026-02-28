@@ -1,5 +1,6 @@
-﻿import {
+import {
   PrismaClient,
+  Role,
   notificationType,
   notification_audience,
 } from "@prisma/client";
@@ -35,12 +36,15 @@ const sendNotificationByAudience = async (payload: {
     },
   });
 
+  const audience = String(payload.target_audience);
+  const roleAudiences: Role[] = [Role.ADMIN, Role.MANAGER, Role.USER];
+
   const users =
-    payload.target_audience === "All"
+    audience === "All"
       ? await prisma.user.findMany()
-      : payload.target_audience === "ADMIN" || payload.target_audience === "MANAGER"
+      : roleAudiences.includes(audience as Role)
         ? await prisma.user.findMany({
-            where: { role: payload.target_audience },
+            where: { role: audience as Role },
           })
         : [];
 
@@ -210,3 +214,4 @@ export const NotificationService = {
   markNotificationAsRead,
   sendPendingNotifications,
 };
+
