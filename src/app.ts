@@ -17,7 +17,7 @@ app.use(apiRateLimiter);
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001", "https://tr-tuition.vercel.app"],
+    origin: ["http://localhost:3000", "http://localhost:3001", "https://tr-tuition.vercel.app","https://e-commerce-frontend-seven-eosin.vercel.app"],
     credentials: true,
   }),
 );
