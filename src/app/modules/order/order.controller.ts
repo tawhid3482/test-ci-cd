@@ -68,13 +68,14 @@ const getMyOrders = catchAsync(async (req: Request, res: Response) => {
     throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized access");
   }
 
-  const result = await orderService.getMyOrders(req.user.id);
+  const result = await orderService.getMyOrders(req.user.id, req.query as Record<string, unknown>);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Orders retrieved successfully",
-    data: result,
+    meta: result.meta,
+    data: result.data,
   });
 });
 

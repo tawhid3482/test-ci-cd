@@ -5,6 +5,7 @@ export const createOrderSchema = z
     shippingAddress: z.string().trim().min(5, "Shipping address is too short").optional(),
     phone: z.string().trim().min(6, "Phone is too short").optional(),
     note: z.string().trim().max(500, "Note is too long").optional(),
+    promoCode: z.string().trim().min(2, "Promo code is too short").max(50).optional(),
     deliveryFee: z.number({ message: "Delivery fee must be a number" }).min(0).optional(),
     paymentMethod: z.enum(["COD", "SSLCOMMERZ"]).optional(),
   })

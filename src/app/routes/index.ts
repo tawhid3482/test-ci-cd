@@ -10,6 +10,7 @@ import { cartRoute } from "../modules/cart/cart.route";
 import { wishlistRoute } from "../modules/wishlist/wishlist.route";
 import { reviewRoute } from "../modules/review/review.route";
 import { orderRoute } from "../modules/order/order.route";
+import { promoCodeRoute } from "../modules/promoCode/promoCode.route";
 
 const router = Router();
 
@@ -57,6 +58,10 @@ const modules = [
   {
     path: "/orders",
     route: orderRoute,
+  },
+  {
+    path: "/promo-codes",
+    route: promoCodeRoute,
   },
 ];
 

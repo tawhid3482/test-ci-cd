@@ -1,4 +1,4 @@
-import { OrderStatus, PaymentMethod, PaymentStatus, PrismaClient, STATUS } from "@prisma/client";
+import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, PrismaClient, PromoCode, STATUS } from "@prisma/client";
 import AppError from "../../helpers/AppError";
 
 const prisma = new PrismaClient();
@@ -7,9 +7,44 @@ type CreateOrderPayload = {
   shippingAddress?: string;
   phone?: string;
   note?: string;
+  promoCode?: string;
   deliveryFee?: number;
   paymentMethod?: PaymentMethod;
 };
+type OrderQuery = Record<string, unknown>;
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+const sortableOrderFields = [
+  "createdAt",
+  "updatedAt",
+  "totalAmount",
+  "subtotal",
+  "status",
+  "paymentStatus",
+] as const;
+type SortableOrderField = (typeof sortableOrderFields)[number];
+const getQueryString = (value: unknown): string | undefined => {
+  if (Array.isArray(value)) {
+    const firstValue = value[0];
+    return typeof firstValue === "string" ? firstValue : undefined;
+  }
+  return typeof value === "string" ? value : undefined;
+};
+const getQueryNumber = (value: unknown): number | undefined => {
+  const numericValue = Number(getQueryString(value));
+  return Number.isFinite(numericValue) ? numericValue : undefined;
+};
+const getQueryDate = (value: unknown): Date | undefined => {
+  const dateValue = getQueryString(value);
+  if (!dateValue) {
+    return undefined;
+  }
+  const parsedDate = new Date(dateValue);
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
+};
+
+const isValidObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(value);
 
 const orderInclude = {
   items: {
@@ -24,7 +59,56 @@ const orderInclude = {
       },
     },
   },
+  promoCode: {
+    select: {
+      id: true,
+      code: true,
+      discountPercentage: true,
+    },
+  },
 } as const;
+
+const normalizePromoCode = (promoCode: string) => promoCode.trim().toUpperCase();
+
+const roundToTwo = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+const validatePromoEligibility = (promo: PromoCode, subtotal: number, now: Date) => {
+  if (!promo.isActive) {
+    throw new AppError(400, "Promo code is inactive");
+  }
+
+  if (promo.startsAt && now < promo.startsAt) {
+    throw new AppError(400, "Promo code is not active yet");
+  }
+
+  if (promo.expiresAt && now > promo.expiresAt) {
+    throw new AppError(400, "Promo code has expired");
+  }
+
+  if (typeof promo.minOrderAmount === "number" && subtotal < promo.minOrderAmount) {
+    throw new AppError(400, `Minimum order amount for this promo is ${promo.minOrderAmount}`);
+  }
+
+  if (typeof promo.usageLimit === "number" && promo.usedCount >= promo.usageLimit) {
+    throw new AppError(400, "Promo code usage limit exceeded");
+  }
+};
+
+const getPromoByCode = async (promoCode: string) => {
+  const normalizedCode = normalizePromoCode(promoCode);
+
+  const promo = await prisma.promoCode.findUnique({
+    where: {
+      code: normalizedCode,
+    },
+  });
+
+  if (!promo) {
+    throw new AppError(400, "Invalid promo code");
+  }
+
+  return promo;
+};
 
 const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) => {
   const paymentMethod = payload.paymentMethod ?? PaymentMethod.COD;
@@ -65,9 +149,21 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
     }
   }
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const deliveryFee = payload.deliveryFee ?? 0;
-  const totalAmount = subtotal + deliveryFee;
+  const subtotal = roundToTwo(
+    cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+  );
+  const deliveryFee = roundToTwo(payload.deliveryFee ?? 0);
+
+  const now = new Date();
+  const promo = payload.promoCode ? await getPromoByCode(payload.promoCode) : null;
+
+  if (promo) {
+    validatePromoEligibility(promo, subtotal, now);
+  }
+
+  const discountPercentage = promo ? promo.discountPercentage : 0;
+  const discountAmount = promo ? roundToTwo((subtotal * discountPercentage) / 100) : 0;
+  const totalAmount = roundToTwo(Math.max(0, subtotal + deliveryFee - discountAmount));
 
   const order = await prisma.$transaction(async (tx) => {
     if (paymentMethod === PaymentMethod.COD) {
@@ -96,6 +192,46 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
       }
     }
 
+    let appliedPromo: PromoCode | null = null;
+
+    if (promo) {
+      const latestPromo = await tx.promoCode.findUnique({
+        where: {
+          id: promo.id,
+        },
+      });
+
+      if (!latestPromo) {
+        throw new AppError(400, "Promo code is no longer available");
+      }
+
+      validatePromoEligibility(latestPromo, subtotal, new Date());
+
+      const usageUpdateResult = await tx.promoCode.updateMany({
+        where: {
+          id: latestPromo.id,
+          ...(typeof latestPromo.usageLimit === "number"
+            ? {
+                usedCount: {
+                  lt: latestPromo.usageLimit,
+                },
+              }
+            : {}),
+        },
+        data: {
+          usedCount: {
+            increment: 1,
+          },
+        },
+      });
+
+      if (usageUpdateResult.count !== 1) {
+        throw new AppError(400, "Promo code usage limit exceeded");
+      }
+
+      appliedPromo = latestPromo;
+    }
+
     const createdOrder = await tx.order.create({
       data: {
         userId,
@@ -104,6 +240,10 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
         note: payload.note,
         subtotal,
         deliveryFee,
+        discountAmount,
+        discountPercentage,
+        promoCodeId: appliedPromo?.id ?? null,
+        appliedPromoCode: appliedPromo?.code ?? null,
         totalAmount,
         status: OrderStatus.PENDING,
         paymentMethod,
@@ -141,6 +281,14 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
   return {
     order,
     payment,
+    pricing: {
+      subtotal,
+      deliveryFee,
+      discountPercentage,
+      discountAmount,
+      totalAmount,
+      appliedPromoCode: order.appliedPromoCode,
+    },
   };
 };
 
@@ -178,7 +326,6 @@ const initSslPayment = async (userId: string, orderId: string) => {
       sessionKey,
       amount: order.totalAmount,
       currency: "BDT",
-      // Placeholder URL. Replace with actual SSLCommerz gateway URL when credentials are added.
       paymentUrl: `https://sandbox.sslcommerz.com/mock/checkout?orderId=${order.id}&sessionKey=${sessionKey}`,
     },
   };
@@ -300,18 +447,151 @@ const markSslPaymentFailed = async (orderId: string) => {
   });
 };
 
-const getMyOrders = async (userId: string) => {
-  return prisma.order.findMany({
-    where: {
-      userId,
+const getMyOrders = async (userId: string, query: OrderQuery) => {
+  const searchTerm =
+    getQueryString(query.searchTerm)?.trim() ||
+    getQueryString(query.search)?.trim() ||
+    getQueryString(query.q)?.trim();
+  const promoCodeTerm =
+    getQueryString(query.promoCode)?.trim() ||
+    getQueryString(query.appliedPromoCode)?.trim();
+  const noteTerm = getQueryString(query.note)?.trim();
+  const page = Math.max(getQueryNumber(query.page) || DEFAULT_PAGE, 1);
+  const limit = Math.min(Math.max(getQueryNumber(query.limit) || DEFAULT_LIMIT, 1), MAX_LIMIT);
+  const skip = (page - 1) * limit;
+  const sortByValue = getQueryString(query.sortBy) as SortableOrderField | undefined;
+  const sortBy: SortableOrderField = sortableOrderFields.includes(sortByValue as SortableOrderField)
+    ? (sortByValue as SortableOrderField)
+    : "createdAt";
+  const sortOrderInput = getQueryString(query.sortOrder)?.toLowerCase();
+  const sortOrder: Prisma.SortOrder = sortOrderInput === "asc" ? "asc" : "desc";
+  const where: Prisma.OrderWhereInput = {
+    userId,
+  };
+  const status = getQueryString(query.status) as OrderStatus | undefined;
+  if (status && Object.values(OrderStatus).includes(status)) {
+    where.status = status;
+  }
+  const paymentStatus = getQueryString(query.paymentStatus) as PaymentStatus | undefined;
+  if (paymentStatus && Object.values(PaymentStatus).includes(paymentStatus)) {
+    where.paymentStatus = paymentStatus;
+  }
+  const paymentMethod = getQueryString(query.paymentMethod) as PaymentMethod | undefined;
+  if (paymentMethod && Object.values(PaymentMethod).includes(paymentMethod)) {
+    where.paymentMethod = paymentMethod;
+  }
+  if (promoCodeTerm) {
+    where.OR = [
+      {
+        appliedPromoCode: {
+          contains: promoCodeTerm,
+          mode: "insensitive",
+        },
+      },
+      {
+        promoCode: {
+          is: {
+            code: {
+              contains: promoCodeTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+      },
+    ];
+  }
+  if (noteTerm) {
+    where.note = {
+      contains: noteTerm,
+      mode: "insensitive",
+    };
+  }
+  const minTotal = getQueryNumber(query.minTotal);
+  const maxTotal = getQueryNumber(query.maxTotal);
+  if (typeof minTotal === "number" || typeof maxTotal === "number") {
+    where.totalAmount = {
+      ...(typeof minTotal === "number" ? { gte: minTotal } : {}),
+      ...(typeof maxTotal === "number" ? { lte: maxTotal } : {}),
+    };
+  }
+  const fromDate = getQueryDate(query.fromDate);
+  const toDate = getQueryDate(query.toDate);
+  if (fromDate || toDate) {
+    where.createdAt = {
+      ...(fromDate ? { gte: fromDate } : {}),
+      ...(toDate ? { lte: toDate } : {}),
+    };
+  }
+  if (searchTerm) {
+    const orConditions: Prisma.OrderWhereInput[] = [
+      {
+        transactionId: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+      {
+        appliedPromoCode: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+      {
+        promoCode: {
+          is: {
+            code: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+      },
+      {
+        phone: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+      {
+        shippingAddress: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+      {
+        note: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+    ];
+    if (isValidObjectId(searchTerm)) {
+      orConditions.unshift({ id: searchTerm });
+    }
+    where.OR = orConditions;
+  }
+  const [data, total] = await prisma.$transaction([
+    prisma.order.findMany({
+      where,
+      include: orderInclude,
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.order.count({ where }),
+  ]);
+  return {
+    meta: {
+      total,
+      page,
+      limit,
+      totalPage: Math.ceil(total / limit),
     },
-    include: orderInclude,
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+    data,
+  };
 };
-
 const getAllOrders = async () => {
   return prisma.order.findMany({
     include: {
@@ -440,3 +720,10 @@ export const orderService = {
   getAllOrders,
   updateOrderStatus,
 };
+
+
+
+
+
+
+
