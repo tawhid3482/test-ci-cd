@@ -111,6 +111,21 @@ const getMyOrders = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const getMyOrderStats = catchAsync(async (req: Request, res: Response) => {
+  if (!req.user?.id) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized access");
+  }
+
+  const result = await orderService.getMyOrderStats(req.user.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Order stats retrieved successfully",
+    data: result,
+  });
+});
 const getAllOrders = catchAsync(async (_req: Request, res: Response) => {
   const result = await orderService.getAllOrders();
 
@@ -153,7 +168,9 @@ export const orderController = {
   sslPaymentSuccess,
   sslPaymentFail,
   getMyOrders,
+  getMyOrderStats,
   getAllOrders,
   getAdminStats,
   updateOrderStatus,
 };
+

@@ -186,10 +186,10 @@ const initializeSslCommerzSession = async (params: {
     total_amount: String(params.amount),
     currency: "BDT",
     tran_id: transactionId,
-    success_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/success`,
-    fail_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/fail`,
-    cancel_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/fail`,
-    ipn_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/success`,
+    success_url: `${config.backendBaseUrl}/api/v1/orders/payments/ssl/success`,
+    fail_url: `${config.backendBaseUrl}/api/v1/orders/payments/ssl/fail`,
+    cancel_url: `${config.backendBaseUrl}/api/v1/orders/payments/ssl/fail`,
+    ipn_url: `${config.backendBaseUrl}/api/v1/orders/payments/ssl/success`,
     shipping_method: "NO",
     product_name: `Order-${params.orderId.slice(-6)}`,
     product_category: "E-commerce",
@@ -903,6 +903,47 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
   };
 };
 
+const getMyOrderStats = async (userId: string) => {
+  const [totalOrders, paidOrders, totalSpentAggregate, activeDeliveries] =
+    await prisma.$transaction([
+      prisma.order.count({
+        where: {
+          userId,
+        },
+      }),
+      prisma.order.count({
+        where: {
+          userId,
+          paymentStatus: PaymentStatus.PAID,
+        },
+      }),
+      prisma.order.aggregate({
+        where: {
+          userId,
+          paymentStatus: PaymentStatus.PAID,
+        },
+        _sum: {
+          totalAmount: true,
+        },
+      }),
+      prisma.order.count({
+        where: {
+          userId,
+          status: {
+            in: [OrderStatus.CONFIRMED, OrderStatus.SHIPPED],
+          },
+        },
+      }),
+    ]);
+
+  return {
+    totalOrders,
+    totalSpent: roundToTwo(totalSpentAggregate._sum.totalAmount || 0),
+    activeDeliveries,
+    paidOrders,
+  };
+};
+
 const getAllOrders = async () => {
   return prisma.order.findMany({
     include: {
@@ -1133,10 +1174,13 @@ export const orderService = {
   markSslPaymentSuccess,
   markSslPaymentFailed,
   getMyOrders,
+  getMyOrderStats,
   getAllOrders,
   getAdminStats,
   updateOrderStatus,
 };
+
+
 
 
 

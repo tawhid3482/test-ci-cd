@@ -11,6 +11,7 @@ router.post("/checkout", auth(), validateRequest(createOrderSchema), orderContro
 router.post("/:orderId/payments/ssl/init", auth(), orderController.initSslPayment);
 router.all("/payments/ssl/success", orderController.sslPaymentSuccess);
 router.all("/payments/ssl/fail", orderController.sslPaymentFail);
+router.get("/me/stats", auth(), orderController.getMyOrderStats);
 router.get("/me", auth(), orderController.getMyOrders);
 router.get("/admin/stats", auth(Role.ADMIN, Role.SUPER_ADMIN), orderController.getAdminStats);
 router.get("/", auth(Role.ADMIN, Role.SUPER_ADMIN), orderController.getAllOrders);
