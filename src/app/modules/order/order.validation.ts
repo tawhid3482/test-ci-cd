@@ -19,13 +19,28 @@ export const updateOrderStatusSchema = z
 
 export const sslPaymentSuccessSchema = z
   .object({
-    orderId: z.string().min(1, "Order ID is required"),
-    transactionId: z.string().min(1, "Transaction ID is required"),
+    orderId: z.string().min(1, "Order ID is required").optional(),
+    transactionId: z.string().min(1, "Transaction ID is required").optional(),
+    value_a: z.string().min(1).optional(),
+    tran_id: z.string().min(1).optional(),
   })
-  .strict();
+  .passthrough()
+  .refine((value) => Boolean(value.orderId || value.value_a), {
+    message: "Order ID is required",
+    path: ["orderId"],
+  })
+  .refine((value) => Boolean(value.transactionId || value.tran_id), {
+    message: "Transaction ID is required",
+    path: ["transactionId"],
+  });
 
 export const sslPaymentFailSchema = z
   .object({
-    orderId: z.string().min(1, "Order ID is required"),
+    orderId: z.string().min(1, "Order ID is required").optional(),
+    value_a: z.string().min(1).optional(),
   })
-  .strict();
+  .passthrough()
+  .refine((value) => Boolean(value.orderId || value.value_a), {
+    message: "Order ID is required",
+    path: ["orderId"],
+  });

@@ -123,6 +123,7 @@ model Order {
   note               String?
   status             OrderStatus   @default(PENDING)
   items              OrderItem[]
+  paymentHistories   PaymentHistory[]
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   @@index([userId])
@@ -132,6 +133,29 @@ model Order {
   @@index([promoCodeId])
   @@index([appliedPromoCode])
 }
+model PaymentHistory {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  orderId           String        @db.ObjectId
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId            String        @db.ObjectId
+  paymentMethod     PaymentMethod
+  paymentStatus     PaymentStatus
+  paymentGateway    String
+  amount            Float
+  transactionId     String?
+  gatewaySessionKey String?
+  gatewayResponse   Json?
+  paidAt            DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([paymentStatus])
+  @@index([transactionId])
+}
+
 model OrderItem {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   orderId   String   @db.ObjectId
@@ -315,4 +339,6 @@ enum EGender {
   Female
   Other
 }
+
+
 

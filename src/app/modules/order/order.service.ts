@@ -1,5 +1,14 @@
-import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, PrismaClient, PromoCode, STATUS } from "@prisma/client";
+import {
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  Prisma,
+  PrismaClient,
+  PromoCode,
+  STATUS,
+} from "@prisma/client";
 import AppError from "../../helpers/AppError";
+import { envVars } from "../../config/env";
 
 const prisma = new PrismaClient();
 
@@ -11,10 +20,24 @@ type CreateOrderPayload = {
   deliveryFee?: number;
   paymentMethod?: PaymentMethod;
 };
+
 type OrderQuery = Record<string, unknown>;
+type GatewayPayload = Record<string, unknown>;
+
+type SslInitResult = {
+  paymentUrl: string;
+  sessionKey: string;
+  gatewayResponse: GatewayPayload;
+};
+type RevenueChartPoint = {
+  label: string;
+  revenue: number;
+};
+
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+
 const sortableOrderFields = [
   "createdAt",
   "updatedAt",
@@ -23,23 +46,29 @@ const sortableOrderFields = [
   "status",
   "paymentStatus",
 ] as const;
+
 type SortableOrderField = (typeof sortableOrderFields)[number];
+
 const getQueryString = (value: unknown): string | undefined => {
   if (Array.isArray(value)) {
     const firstValue = value[0];
     return typeof firstValue === "string" ? firstValue : undefined;
   }
+
   return typeof value === "string" ? value : undefined;
 };
+
 const getQueryNumber = (value: unknown): number | undefined => {
   const numericValue = Number(getQueryString(value));
   return Number.isFinite(numericValue) ? numericValue : undefined;
 };
+
 const getQueryDate = (value: unknown): Date | undefined => {
   const dateValue = getQueryString(value);
   if (!dateValue) {
     return undefined;
   }
+
   const parsedDate = new Date(dateValue);
   return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
 };
@@ -66,11 +95,143 @@ const orderInclude = {
       discountPercentage: true,
     },
   },
+  paymentHistories: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      paymentMethod: true,
+      paymentStatus: true,
+      paymentGateway: true,
+      amount: true,
+      transactionId: true,
+      gatewaySessionKey: true,
+      paidAt: true,
+      failedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
 } as const;
 
 const normalizePromoCode = (promoCode: string) => promoCode.trim().toUpperCase();
-
 const roundToTwo = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+const formatUtcDateLabel = (date: Date) => date.toISOString().slice(0, 10);
+const formatUtcMonthLabel = (date: Date) =>
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+const formatUtcYearLabel = (date: Date) => String(date.getUTCFullYear());
+const toPrismaJson = (value?: GatewayPayload): Prisma.InputJsonValue | null => {
+  if (!value) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+};
+const buildRevenueSeries = (
+  labels: string[],
+  orders: Array<{ createdAt: Date; totalAmount: number }>,
+  formatter: (date: Date) => string,
+): RevenueChartPoint[] => {
+  const revenueMap = new Map<string, number>();
+
+  for (const order of orders) {
+    const key = formatter(order.createdAt);
+    revenueMap.set(key, (revenueMap.get(key) || 0) + order.totalAmount);
+  }
+
+  return labels.map((label) => ({
+    label,
+    revenue: roundToTwo(revenueMap.get(label) || 0),
+  }));
+};
+
+const getSslGatewayConfig = () => {
+  const isProduction = envVars.NODE_ENV.toLowerCase() === "production";
+  const storeId = envVars.SSLCOMMERZ_STORE_ID?.trim();
+  const storePassword = envVars.SSLCOMMERZ_STORE_PASSWORD?.trim();
+
+  if (!storeId || !storePassword) {
+    throw new AppError(500, "SSLCommerz credentials are not configured");
+  }
+
+  const backendBaseUrl =
+    envVars.BACKEND_URL?.trim() || `http://localhost:${envVars.PORT}`;
+
+  return {
+    storeId,
+    storePassword,
+    backendBaseUrl,
+    initUrl: isProduction
+      ? "https://securepay.sslcommerz.com/gwprocess/v4/api.php"
+      : "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+  };
+};
+
+const initializeSslCommerzSession = async (params: {
+  orderId: string;
+  userId: string;
+  amount: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress?: string;
+}): Promise<SslInitResult> => {
+  const config = getSslGatewayConfig();
+  const transactionId = `ORD-${params.orderId.slice(-8)}-${Date.now().toString().slice(-8)}`;
+
+  const payload = new URLSearchParams({
+    store_id: config.storeId,
+    store_passwd: config.storePassword,
+    total_amount: String(params.amount),
+    currency: "BDT",
+    tran_id: transactionId,
+    success_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/success`,
+    fail_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/fail`,
+    cancel_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/fail`,
+    ipn_url: `${envVars.FRONTEND_URL}/dashboard/user/payments/ssl/success`,
+    shipping_method: "NO",
+    product_name: `Order-${params.orderId.slice(-6)}`,
+    product_category: "E-commerce",
+    product_profile: "general",
+    cus_name: params.customerName,
+    cus_email: params.customerEmail,
+    cus_add1: params.shippingAddress || "N/A",
+    cus_city: "Dhaka",
+    cus_country: "Bangladesh",
+    cus_phone: params.customerPhone,
+    value_a: params.orderId,
+    value_b: params.userId,
+  });
+
+  const response = await fetch(config.initUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: payload.toString(),
+  });
+
+  if (!response.ok) {
+    throw new AppError(502, "Failed to initialize SSLCommerz session");
+  }
+
+  const data = (await response.json()) as GatewayPayload;
+  const status = String(data.status || "").toLowerCase();
+  const paymentUrl = String(data.GatewayPageURL || "");
+  const sessionKey = String(data.sessionkey || "");
+
+  if (status !== "success" || !paymentUrl) {
+    const message = String(data.failedreason || "SSLCommerz session init failed");
+    throw new AppError(400, message);
+  }
+
+  return {
+    paymentUrl,
+    sessionKey,
+    gatewayResponse: data,
+  };
+};
 
 const validatePromoEligibility = (promo: PromoCode, subtotal: number, now: Date) => {
   if (!promo.isActive) {
@@ -267,16 +428,49 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
     return createdOrder;
   });
 
-  const payment =
-    paymentMethod === PaymentMethod.SSLCOMMERZ
-      ? {
-          paymentRequired: true,
-          nextStep: "Call /api/v1/orders/:orderId/payments/ssl/init to initialize SSLCommerz session",
-        }
-      : {
-          paymentRequired: false,
-          nextStep: "Cash on Delivery selected",
-        };
+  let payment: Record<string, unknown>;
+
+  if (paymentMethod === PaymentMethod.SSLCOMMERZ) {
+    const session = await initializeSslCommerzSession({
+      orderId: order.id,
+      userId,
+      amount: order.totalAmount,
+      customerName: "Customer",
+      customerEmail: "customer@example.com",
+      customerPhone: order.phone || "01700000000",
+      shippingAddress: order.shippingAddress || undefined,
+    });
+
+    await prisma.paymentHistory.create({
+      data: {
+        orderId: order.id,
+        userId,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentGateway: "SSLCOMMERZ",
+        amount: order.totalAmount,
+        gatewaySessionKey: session.sessionKey || null,
+        gatewayResponse: toPrismaJson(session.gatewayResponse),
+      },
+    });
+
+    payment = {
+      paymentRequired: true,
+      gateway: "SSLCOMMERZ",
+      nextStep: "Redirect user to session.paymentUrl",
+      session: {
+        sessionKey: session.sessionKey,
+        amount: order.totalAmount,
+        currency: "BDT",
+        paymentUrl: session.paymentUrl,
+      },
+    };
+  } else {
+    payment = {
+      paymentRequired: false,
+      nextStep: "Cash on Delivery selected",
+    };
+  }
 
   return {
     order,
@@ -298,7 +492,17 @@ const initSslPayment = async (userId: string, orderId: string) => {
       id: orderId,
       userId,
     },
-    include: orderInclude,
+    include: {
+      ...orderInclude,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
   });
 
   if (!order) {
@@ -317,21 +521,46 @@ const initSslPayment = async (userId: string, orderId: string) => {
     throw new AppError(400, "Cannot initialize payment for a cancelled order");
   }
 
-  const sessionKey = `SSL-${order.id.slice(-6)}-${Date.now()}`;
+  const session = await initializeSslCommerzSession({
+    orderId: order.id,
+    userId,
+    amount: order.totalAmount,
+    customerName: order.user?.name || "Customer",
+    customerEmail: order.user?.email || "customer@example.com",
+    customerPhone: order.phone || order.user?.phone || "01700000000",
+    shippingAddress: order.shippingAddress || undefined,
+  });
+
+  await prisma.paymentHistory.create({
+    data: {
+      orderId: order.id,
+      userId,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: PaymentStatus.PENDING,
+      paymentGateway: "SSLCOMMERZ",
+      amount: order.totalAmount,
+      gatewaySessionKey: session.sessionKey || null,
+      gatewayResponse: toPrismaJson(session.gatewayResponse),
+    },
+  });
 
   return {
     order,
     gateway: "SSLCOMMERZ",
     session: {
-      sessionKey,
+      sessionKey: session.sessionKey,
       amount: order.totalAmount,
       currency: "BDT",
-      paymentUrl: `https://sandbox.sslcommerz.com/mock/checkout?orderId=${order.id}&sessionKey=${sessionKey}`,
+      paymentUrl: session.paymentUrl,
     },
   };
 };
 
-const markSslPaymentSuccess = async (orderId: string, transactionId: string) => {
+const markSslPaymentSuccess = async (
+  orderId: string,
+  transactionId: string,
+  gatewayPayload?: GatewayPayload,
+) => {
   const existingOrder = await prisma.order.findUnique({
     where: {
       id: orderId,
@@ -354,6 +583,20 @@ const markSslPaymentSuccess = async (orderId: string, transactionId: string) => 
   }
 
   if (existingOrder.paymentStatus === PaymentStatus.PAID) {
+    await prisma.paymentHistory.create({
+      data: {
+        orderId: existingOrder.id,
+        userId: existingOrder.userId,
+        paymentMethod: existingOrder.paymentMethod,
+        paymentStatus: PaymentStatus.PAID,
+        paymentGateway: "SSLCOMMERZ",
+        amount: existingOrder.totalAmount,
+        transactionId,
+        paidAt: new Date(),
+        gatewayResponse: toPrismaJson(gatewayPayload),
+      },
+    });
+
     return prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -392,6 +635,33 @@ const markSslPaymentSuccess = async (orderId: string, transactionId: string) => 
       }
     }
 
+    await tx.paymentHistory.updateMany({
+      where: {
+        orderId,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+      data: {
+        paymentStatus: PaymentStatus.PAID,
+        transactionId,
+        paidAt: new Date(),
+        gatewayResponse: toPrismaJson(gatewayPayload),
+      },
+    });
+
+    await tx.paymentHistory.create({
+      data: {
+        orderId: existingOrder.id,
+        userId: existingOrder.userId,
+        paymentMethod: existingOrder.paymentMethod,
+        paymentStatus: PaymentStatus.PAID,
+        paymentGateway: "SSLCOMMERZ",
+        amount: existingOrder.totalAmount,
+        transactionId,
+        paidAt: new Date(),
+        gatewayResponse: toPrismaJson(gatewayPayload),
+      },
+    });
+
     return tx.order.update({
       where: {
         id: orderId,
@@ -417,7 +687,7 @@ const markSslPaymentSuccess = async (orderId: string, transactionId: string) => 
   });
 };
 
-const markSslPaymentFailed = async (orderId: string) => {
+const markSslPaymentFailed = async (orderId: string, gatewayPayload?: GatewayPayload) => {
   const existingOrder = await prisma.order.findUnique({
     where: {
       id: orderId,
@@ -436,14 +706,41 @@ const markSslPaymentFailed = async (orderId: string) => {
     throw new AppError(400, "Completed payments cannot be marked as failed");
   }
 
-  return prisma.order.update({
-    where: {
-      id: orderId,
-    },
-    data: {
-      paymentStatus: PaymentStatus.FAILED,
-    },
-    include: orderInclude,
+  return prisma.$transaction(async (tx) => {
+    await tx.paymentHistory.updateMany({
+      where: {
+        orderId,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+      data: {
+        paymentStatus: PaymentStatus.FAILED,
+        failedAt: new Date(),
+        gatewayResponse: toPrismaJson(gatewayPayload),
+      },
+    });
+
+    await tx.paymentHistory.create({
+      data: {
+        orderId: existingOrder.id,
+        userId: existingOrder.userId,
+        paymentMethod: existingOrder.paymentMethod,
+        paymentStatus: PaymentStatus.FAILED,
+        paymentGateway: "SSLCOMMERZ",
+        amount: existingOrder.totalAmount,
+        failedAt: new Date(),
+        gatewayResponse: toPrismaJson(gatewayPayload),
+      },
+    });
+
+    return tx.order.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        paymentStatus: PaymentStatus.FAILED,
+      },
+      include: orderInclude,
+    });
   });
 };
 
@@ -465,21 +762,26 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
     : "createdAt";
   const sortOrderInput = getQueryString(query.sortOrder)?.toLowerCase();
   const sortOrder: Prisma.SortOrder = sortOrderInput === "asc" ? "asc" : "desc";
+
   const where: Prisma.OrderWhereInput = {
     userId,
   };
+
   const status = getQueryString(query.status) as OrderStatus | undefined;
   if (status && Object.values(OrderStatus).includes(status)) {
     where.status = status;
   }
+
   const paymentStatus = getQueryString(query.paymentStatus) as PaymentStatus | undefined;
   if (paymentStatus && Object.values(PaymentStatus).includes(paymentStatus)) {
     where.paymentStatus = paymentStatus;
   }
+
   const paymentMethod = getQueryString(query.paymentMethod) as PaymentMethod | undefined;
   if (paymentMethod && Object.values(PaymentMethod).includes(paymentMethod)) {
     where.paymentMethod = paymentMethod;
   }
+
   if (promoCodeTerm) {
     where.OR = [
       {
@@ -500,12 +802,14 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
       },
     ];
   }
+
   if (noteTerm) {
     where.note = {
       contains: noteTerm,
       mode: "insensitive",
     };
   }
+
   const minTotal = getQueryNumber(query.minTotal);
   const maxTotal = getQueryNumber(query.maxTotal);
   if (typeof minTotal === "number" || typeof maxTotal === "number") {
@@ -514,6 +818,7 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
       ...(typeof maxTotal === "number" ? { lte: maxTotal } : {}),
     };
   }
+
   const fromDate = getQueryDate(query.fromDate);
   const toDate = getQueryDate(query.toDate);
   if (fromDate || toDate) {
@@ -522,6 +827,7 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
       ...(toDate ? { lte: toDate } : {}),
     };
   }
+
   if (searchTerm) {
     const orConditions: Prisma.OrderWhereInput[] = [
       {
@@ -565,11 +871,14 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
         },
       },
     ];
+
     if (isValidObjectId(searchTerm)) {
       orConditions.unshift({ id: searchTerm });
     }
+
     where.OR = orConditions;
   }
+
   const [data, total] = await prisma.$transaction([
     prisma.order.findMany({
       where,
@@ -582,6 +891,7 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
     }),
     prisma.order.count({ where }),
   ]);
+
   return {
     meta: {
       total,
@@ -592,6 +902,7 @@ const getMyOrders = async (userId: string, query: OrderQuery) => {
     data,
   };
 };
+
 const getAllOrders = async () => {
   return prisma.order.findMany({
     include: {
@@ -611,6 +922,111 @@ const getAllOrders = async () => {
   });
 };
 
+
+const getAdminStats = async () => {
+  const now = new Date();
+  const dailyRangeStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29),
+  );
+  const monthlyRangeStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
+  const yearlyRangeStart = new Date(Date.UTC(now.getUTCFullYear() - 4, 0, 1));
+
+  const nonCancelledOrderFilter: Prisma.OrderWhereInput = {
+    status: {
+      not: OrderStatus.CANCELLED,
+    },
+  };
+
+  const [
+    totalUsers,
+    totalProducts,
+    totalOrders,
+    totalRevenueAggregate,
+    dailyOrders,
+    monthlyOrders,
+    yearlyOrders,
+  ] = await prisma.$transaction([
+    prisma.user.count(),
+    prisma.product.count(),
+    prisma.order.count(),
+    prisma.order.aggregate({
+      where: nonCancelledOrderFilter,
+      _sum: {
+        totalAmount: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        ...nonCancelledOrderFilter,
+        createdAt: {
+          gte: dailyRangeStart,
+        },
+      },
+      select: {
+        createdAt: true,
+        totalAmount: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        ...nonCancelledOrderFilter,
+        createdAt: {
+          gte: monthlyRangeStart,
+        },
+      },
+      select: {
+        createdAt: true,
+        totalAmount: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        ...nonCancelledOrderFilter,
+        createdAt: {
+          gte: yearlyRangeStart,
+        },
+      },
+      select: {
+        createdAt: true,
+        totalAmount: true,
+      },
+    }),
+  ]);
+
+  const dailyLabels: string[] = [];
+  for (let offset = 29; offset >= 0; offset -= 1) {
+    const date = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - offset),
+    );
+    dailyLabels.push(formatUtcDateLabel(date));
+  }
+
+  const monthlyLabels: string[] = [];
+  for (let offset = 11; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+    monthlyLabels.push(formatUtcMonthLabel(date));
+  }
+
+  const yearlyLabels: string[] = [];
+  for (let offset = 4; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(now.getUTCFullYear() - offset, 0, 1));
+    yearlyLabels.push(formatUtcYearLabel(date));
+  }
+
+  return {
+    overview: {
+      totalUsers,
+      totalProducts,
+      totalOrders,
+      totalRevenue: roundToTwo(totalRevenueAggregate._sum.totalAmount || 0),
+    },
+    charts: {
+      dailyRevenue: buildRevenueSeries(dailyLabels, dailyOrders, formatUtcDateLabel),
+      monthlyRevenue: buildRevenueSeries(monthlyLabels, monthlyOrders, formatUtcMonthLabel),
+      yearlyRevenue: buildRevenueSeries(yearlyLabels, yearlyOrders, formatUtcYearLabel),
+    },
+  };
+};
 const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
   const existingOrder = await prisma.order.findUnique({
     where: {
@@ -718,8 +1134,14 @@ export const orderService = {
   markSslPaymentFailed,
   getMyOrders,
   getAllOrders,
+  getAdminStats,
   updateOrderStatus,
 };
+
+
+
+
+
 
 
 

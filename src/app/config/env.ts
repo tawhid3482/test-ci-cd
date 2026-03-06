@@ -16,8 +16,9 @@ interface EnvVars {
   EMAIL_SENDER_SMTP_PORT: string;
   FRONTEND_URL: string;
   EMAIL_SENDER_SMTP_HOST: string;
-
-
+  SSLCOMMERZ_STORE_ID?: string;
+  SSLCOMMERZ_STORE_PASSWORD?: string;
+  BACKEND_URL?: string;
 }
 
 const loadEnvVariables = (): EnvVars => {
@@ -35,15 +36,14 @@ const loadEnvVariables = (): EnvVars => {
     "EMAIL_SENDER_SMTP_PORT",
     "FRONTEND_URL",
     "EMAIL_SENDER_SMTP_HOST",
-    
   ];
+
   requiredVars.forEach((key) => {
     if (!process.env[key]) {
-      {
-        throw new Error(`Environment variable ${key}is not set`);
-      }
+      throw new Error(`Environment variable ${key} is not set`);
     }
   });
+
   return {
     PORT: process.env.PORT as string,
     NODE_ENV: process.env.NODE_ENV as string,
@@ -58,8 +58,9 @@ const loadEnvVariables = (): EnvVars => {
     EMAIL_SENDER_SMTP_PORT: process.env.EMAIL_SENDER_SMTP_PORT as string,
     FRONTEND_URL: process.env.FRONTEND_URL as string,
     EMAIL_SENDER_SMTP_HOST: process.env.EMAIL_SENDER_SMTP_HOST as string,
-
-    
+    SSLCOMMERZ_STORE_ID: process.env.SSLCOMMERZ_STORE_ID,
+    SSLCOMMERZ_STORE_PASSWORD: process.env.SSLCOMMERZ_STORE_PASSWORD,
+    BACKEND_URL: process.env.BACKEND_URL,
   };
 };
 

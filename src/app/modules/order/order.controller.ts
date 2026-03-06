@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { OrderStatus } from "@prisma/client";
 import AppError from "../../helpers/AppError";
+import { envVars } from "../../config/env";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { orderService } from "./order.service";
@@ -37,30 +38,61 @@ const initSslPayment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const sslPaymentSuccess = catchAsync(async (req: Request, res: Response) => {
-  const { orderId, transactionId } = req.body as { orderId: string; transactionId: string };
+const getSslPayload = (req: Request): Record<string, unknown> => ({
+  ...(req.query as Record<string, unknown>),
+  ...(req.body as Record<string, unknown>),
+});
 
-  const result = await orderService.markSslPaymentSuccess(orderId, transactionId);
+const buildFrontendRedirectUrl = (
+  path: string,
+  params: Record<string, string | undefined>,
+): string => {
+  const url = new URL(path, envVars.FRONTEND_URL);
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Payment marked as successful",
-    data: result,
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) {
+      url.searchParams.set(key, value);
+    }
   });
+
+  return url.toString();
+};
+
+const sslPaymentSuccess = catchAsync(async (req: Request, res: Response) => {
+  const payload = getSslPayload(req);
+  const orderId = String(payload.orderId ?? payload.value_a ?? "").trim();
+  const transactionId = String(payload.transactionId ?? payload.tran_id ?? "").trim();
+
+  if (!orderId || !transactionId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Order ID and transaction ID are required");
+  }
+
+  await orderService.markSslPaymentSuccess(orderId, transactionId, payload);
+
+  const redirectUrl = buildFrontendRedirectUrl("/payment/success", {
+    orderId,
+    transactionId,
+  });
+
+  res.redirect(redirectUrl);
 });
 
 const sslPaymentFail = catchAsync(async (req: Request, res: Response) => {
-  const { orderId } = req.body as { orderId: string };
+  const payload = getSslPayload(req);
+  const orderId = String(payload.orderId ?? payload.value_a ?? "").trim();
 
-  const result = await orderService.markSslPaymentFailed(orderId);
+  if (!orderId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Order ID is required");
+  }
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Payment marked as failed",
-    data: result,
+  await orderService.markSslPaymentFailed(orderId, payload);
+
+  const redirectUrl = buildFrontendRedirectUrl("/payment/fail", {
+    orderId,
+    transactionId: String(payload.transactionId ?? payload.tran_id ?? "").trim() || undefined,
   });
+
+  res.redirect(redirectUrl);
 });
 
 const getMyOrders = catchAsync(async (req: Request, res: Response) => {
@@ -90,6 +122,17 @@ const getAllOrders = catchAsync(async (_req: Request, res: Response) => {
   });
 });
 
+const getAdminStats = catchAsync(async (_req: Request, res: Response) => {
+  const result = await orderService.getAdminStats();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Admin order stats retrieved successfully",
+    data: result,
+  });
+});
+
 const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   const orderId = req.params.orderId as string;
   const { status } = req.body as { status: OrderStatus };
@@ -111,5 +154,6 @@ export const orderController = {
   sslPaymentFail,
   getMyOrders,
   getAllOrders,
+  getAdminStats,
   updateOrderStatus,
 };
