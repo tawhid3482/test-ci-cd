@@ -9,6 +9,8 @@ import {
 } from "@prisma/client";
 import AppError from "../../helpers/AppError";
 import { envVars } from "../../config/env";
+import sendEmail from "../../utils/sendEmail";
+import { sendOrderStatusTemplate } from "../../utils/sendOrderStatusTemplate";
 
 const prisma = new PrismaClient();
 
@@ -128,6 +130,73 @@ const toPrismaJson = (value?: GatewayPayload): Prisma.InputJsonValue | null => {
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 };
+
+const removeOrderedItemsFromCart = async (
+  tx: Prisma.TransactionClient,
+  userId: string,
+  items: Array<{ productId: string; quantity: number }>,
+) => {
+  for (const item of items) {
+    const cartItem = await tx.cartItem.findUnique({
+      where: {
+        userId_productId: {
+          userId,
+          productId: item.productId,
+        },
+      },
+    });
+
+    if (!cartItem) {
+      continue;
+    }
+
+    if (cartItem.quantity <= item.quantity) {
+      await tx.cartItem.delete({
+        where: {
+          id: cartItem.id,
+        },
+      });
+      continue;
+    }
+
+    await tx.cartItem.update({
+      where: {
+        id: cartItem.id,
+      },
+      data: {
+        quantity: {
+          decrement: item.quantity,
+        },
+      },
+    });
+  }
+};
+
+const sendOrderStatusEmail = async (order: {
+  id: string;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  totalAmount: number;
+  user?: {
+    email?: string | null;
+    name?: string | null;
+  } | null;
+}) => {
+  if (!order.user?.email) {
+    return;
+  }
+
+  const { subject, html } = sendOrderStatusTemplate({
+    customerName: order.user.name,
+    orderId: order.id,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    totalAmount: order.totalAmount,
+  });
+
+  await sendEmail(order.user.email, subject, html).catch(console.error);
+};
+
 const buildRevenueSeries = (
   labels: string[],
   orders: Array<{ createdAt: Date; totalAmount: number }>,
@@ -423,7 +492,9 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
       include: orderInclude,
     });
 
-    await tx.cartItem.deleteMany({ where: { userId } });
+    if (paymentMethod === PaymentMethod.COD) {
+      await tx.cartItem.deleteMany({ where: { userId } });
+    }
 
     return createdOrder;
   });
@@ -439,19 +510,6 @@ const createOrderFromCart = async (userId: string, payload: CreateOrderPayload) 
       customerEmail: "customer@example.com",
       customerPhone: order.phone || "01700000000",
       shippingAddress: order.shippingAddress || undefined,
-    });
-
-    await prisma.paymentHistory.create({
-      data: {
-        orderId: order.id,
-        userId,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: PaymentStatus.PENDING,
-        paymentGateway: "SSLCOMMERZ",
-        amount: order.totalAmount,
-        gatewaySessionKey: session.sessionKey || null,
-        gatewayResponse: toPrismaJson(session.gatewayResponse),
-      },
     });
 
     payment = {
@@ -531,19 +589,6 @@ const initSslPayment = async (userId: string, orderId: string) => {
     shippingAddress: order.shippingAddress || undefined,
   });
 
-  await prisma.paymentHistory.create({
-    data: {
-      orderId: order.id,
-      userId,
-      paymentMethod: order.paymentMethod,
-      paymentStatus: PaymentStatus.PENDING,
-      paymentGateway: "SSLCOMMERZ",
-      amount: order.totalAmount,
-      gatewaySessionKey: session.sessionKey || null,
-      gatewayResponse: toPrismaJson(session.gatewayResponse),
-    },
-  });
-
   return {
     order,
     gateway: "SSLCOMMERZ",
@@ -583,20 +628,6 @@ const markSslPaymentSuccess = async (
   }
 
   if (existingOrder.paymentStatus === PaymentStatus.PAID) {
-    await prisma.paymentHistory.create({
-      data: {
-        orderId: existingOrder.id,
-        userId: existingOrder.userId,
-        paymentMethod: existingOrder.paymentMethod,
-        paymentStatus: PaymentStatus.PAID,
-        paymentGateway: "SSLCOMMERZ",
-        amount: existingOrder.totalAmount,
-        transactionId,
-        paidAt: new Date(),
-        gatewayResponse: toPrismaJson(gatewayPayload),
-      },
-    });
-
     return prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -613,7 +644,7 @@ const markSslPaymentSuccess = async (
     });
   }
 
-  return prisma.$transaction(async (tx) => {
+  const paidOrder = await prisma.$transaction(async (tx) => {
     for (const item of existingOrder.items) {
       const stockUpdateResult = await tx.product.updateMany({
         where: {
@@ -635,19 +666,6 @@ const markSslPaymentSuccess = async (
       }
     }
 
-    await tx.paymentHistory.updateMany({
-      where: {
-        orderId,
-        paymentStatus: PaymentStatus.PENDING,
-      },
-      data: {
-        paymentStatus: PaymentStatus.PAID,
-        transactionId,
-        paidAt: new Date(),
-        gatewayResponse: toPrismaJson(gatewayPayload),
-      },
-    });
-
     await tx.paymentHistory.create({
       data: {
         orderId: existingOrder.id,
@@ -661,6 +679,8 @@ const markSslPaymentSuccess = async (
         gatewayResponse: toPrismaJson(gatewayPayload),
       },
     });
+
+    await removeOrderedItemsFromCart(tx, existingOrder.userId, existingOrder.items);
 
     return tx.order.update({
       where: {
@@ -685,9 +705,12 @@ const markSslPaymentSuccess = async (
       },
     });
   });
+
+  await sendOrderStatusEmail(paidOrder);
+  return paidOrder;
 };
 
-const markSslPaymentFailed = async (orderId: string, gatewayPayload?: GatewayPayload) => {
+const markSslPaymentFailed = async (orderId: string, _gatewayPayload?: GatewayPayload) => {
   const existingOrder = await prisma.order.findUnique({
     where: {
       id: orderId,
@@ -707,39 +730,26 @@ const markSslPaymentFailed = async (orderId: string, gatewayPayload?: GatewayPay
   }
 
   return prisma.$transaction(async (tx) => {
-    await tx.paymentHistory.updateMany({
-      where: {
-        orderId,
-        paymentStatus: PaymentStatus.PENDING,
-      },
-      data: {
-        paymentStatus: PaymentStatus.FAILED,
-        failedAt: new Date(),
-        gatewayResponse: toPrismaJson(gatewayPayload),
-      },
-    });
+    if (existingOrder.promoCodeId) {
+      await tx.promoCode.updateMany({
+        where: {
+          id: existingOrder.promoCodeId,
+          usedCount: {
+            gt: 0,
+          },
+        },
+        data: {
+          usedCount: {
+            decrement: 1,
+          },
+        },
+      });
+    }
 
-    await tx.paymentHistory.create({
-      data: {
-        orderId: existingOrder.id,
-        userId: existingOrder.userId,
-        paymentMethod: existingOrder.paymentMethod,
-        paymentStatus: PaymentStatus.FAILED,
-        paymentGateway: "SSLCOMMERZ",
-        amount: existingOrder.totalAmount,
-        failedAt: new Date(),
-        gatewayResponse: toPrismaJson(gatewayPayload),
-      },
-    });
-
-    return tx.order.update({
+    await tx.order.delete({
       where: {
         id: orderId,
       },
-      data: {
-        paymentStatus: PaymentStatus.FAILED,
-      },
-      include: orderInclude,
     });
   });
 };
@@ -1083,7 +1093,22 @@ const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
   }
 
   if (existingOrder.status === status) {
-    return existingOrder;
+    return prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        ...orderInclude,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
   }
 
   if (existingOrder.status === OrderStatus.DELIVERED) {
@@ -1109,7 +1134,7 @@ const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
       existingOrder.paymentMethod === PaymentMethod.COD ||
       existingOrder.paymentStatus === PaymentStatus.PAID;
 
-    return prisma.$transaction(async (tx) => {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
       if (shouldRestoreStock) {
         for (const item of existingOrder.items) {
           await tx.product.update({
@@ -1145,9 +1170,12 @@ const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
         },
       });
     });
+
+    await sendOrderStatusEmail(updatedOrder);
+    return updatedOrder;
   }
 
-  return prisma.order.update({
+  const updatedOrder = await prisma.order.update({
     where: {
       id: orderId,
     },
@@ -1166,6 +1194,9 @@ const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
       },
     },
   });
+
+  await sendOrderStatusEmail(updatedOrder);
+  return updatedOrder;
 };
 
 export const orderService = {

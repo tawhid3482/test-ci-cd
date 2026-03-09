@@ -2,7 +2,7 @@
 import { Role } from "@prisma/client";
 import { contactController } from "./contact.controller";
 import { validateRequest } from "../../middlewares/validateRequest";
-import { createContactSchema } from "./contact.validation";
+import { createContactSchema, updateContactSchema } from "./contact.validation";
 import { auth } from "../../middlewares/authMiddleware";
 
 const router = Router();
@@ -14,5 +14,11 @@ router.post(
 );
 
 router.get("/", auth(Role.ADMIN, Role.SUPER_ADMIN), contactController.getContact);
+router.patch(
+  "/:contactId",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(updateContactSchema),
+  contactController.updateContact,
+);
 
 export const contactRoute = router;

@@ -28,8 +28,21 @@ const getContact = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateContact = catchAsync(async (req: Request, res: Response) => {
+  const contactId = req.params.contactId as string;
+  const result = await contactService.updateContact(contactId, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Contact Message updated successfully",
+    data: result,
+  });
+});
+
 
 export const contactController = {
-createContact,
-getContact,
+  createContact,
+  getContact,
+  updateContact,
 };

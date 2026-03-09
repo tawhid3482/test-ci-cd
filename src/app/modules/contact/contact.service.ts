@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { contactMailTemplate } from "../../utils/sendContactMail";
 import sendEmail from "../../utils/sendEmail";
 import { envVars } from "../../config/env";
+import AppError from "../../helpers/AppError";
 
 const prisma = new PrismaClient();
 
@@ -35,7 +36,35 @@ const getContact = async () => {
   return result;
 };
 
+const updateContact = async (
+  contactId: string,
+  payload: {
+    title?: string;
+    message?: string;
+    priority?: "Urgent" | "Normal";
+    status?: "Pending" | "Resolved" | "Closed";
+  },
+) => {
+  const existingContact = await prisma.contact.findUnique({
+    where: {
+      id: contactId,
+    },
+  });
+
+  if (!existingContact) {
+    throw new AppError(httpStatus.NOT_FOUND, "Contact message not found");
+  }
+
+  return prisma.contact.update({
+    where: {
+      id: contactId,
+    },
+    data: payload,
+  });
+};
+
 export const contactService = {
   createContact,
   getContact,
+  updateContact,
 };

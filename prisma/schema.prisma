@@ -234,7 +234,7 @@ model Contact {
   message  String
   email    String
   priority priorityStatus @default(Normal)
-
+  status  contactStatus @default(Pending)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -275,6 +275,12 @@ model Notification {
   updatedAt       DateTime              @updatedAt
 
   userNotifications UserNotification[]
+}
+
+enum contactStatus {
+  Pending
+  Resolved
+  Closed
 }
 
 enum notificationStatus {
