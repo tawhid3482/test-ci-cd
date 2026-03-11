@@ -8,6 +8,7 @@ const productBaseSchema = {
   description: z
     .string()
     .min(10, { message: "Description must be at least 10 characters long" }),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   price: z
     .number({
       message: "Price must be a number",
