@@ -35,6 +35,7 @@ export const updateProductSchema = z
     price: productBaseSchema.price.optional(),
     stock: productBaseSchema.stock.optional(),
     images: productBaseSchema.images.optional(),
+    status: productBaseSchema.status.optional(),
     categoryId: productBaseSchema.categoryId.optional(),
   })
   .strict();
